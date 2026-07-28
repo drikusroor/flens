@@ -4,6 +4,8 @@ import { Room, type RoomEvents } from './room.js';
 /** In-memory room registry. Rooms die with the process; that is fine for now. */
 export class RoomRegistry {
   private rooms = new Map<string, Room>();
+  /** Discord Activity instance id -> room code. */
+  private instances = new Map<string, string>();
 
   create(topValue: number, events: RoomEvents): Room {
     const code = this.freshCode();
@@ -16,8 +18,25 @@ export class RoomRegistry {
     return this.rooms.get(code.toUpperCase());
   }
 
+  /**
+   * The room for a Discord Activity instance, created on first use. This is how
+   * everyone who launched the same Activity ends up at the same table.
+   */
+  forInstance(instanceId: string, topValue: number, events: RoomEvents): Room {
+    const existing = this.instances.get(instanceId);
+    const room = existing ? this.rooms.get(existing) : undefined;
+    if (room) return room;
+
+    const created = this.create(topValue, events);
+    this.instances.set(instanceId, created.code);
+    return created;
+  }
+
   delete(code: string): void {
     this.rooms.delete(code);
+    for (const [instance, mapped] of this.instances) {
+      if (mapped === code) this.instances.delete(instance);
+    }
   }
 
   get size(): number {
@@ -27,7 +46,7 @@ export class RoomRegistry {
   /** Drops rooms nobody is connected to, so abandoned games don't accumulate. */
   sweep(): void {
     for (const [code, room] of this.rooms) {
-      if (room.isEmpty) this.rooms.delete(code);
+      if (room.isEmpty) this.delete(code);
     }
   }
 

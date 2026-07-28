@@ -6,7 +6,7 @@
  * boundary: a client's claimed seat is never trusted, only its token.
  */
 
-import { createServer } from 'node:http';
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { isClientMessage, type ClientMessage, type ServerMessage } from '@flens/protocol';
@@ -26,14 +26,73 @@ const registry = new RoomRegistry();
 const sessions = new Set<Session>();
 
 const httpServer = createServer((req, res) => {
-  if (req.url === '/health') {
-    res.writeHead(200, { 'content-type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, rooms: registry.size }));
-    return;
+  // Discord serves the Activity through its own proxy, which prefixes every
+  // request path with /.proxy — so each route has to answer on both.
+  const path = (req.url ?? '').replace(/^\/\.proxy/, '');
+
+  if (path === '/health') {
+    return json(res, 200, { ok: true, rooms: registry.size });
   }
+  if (path === '/api/discord/token' && req.method === 'POST') {
+    return discordToken(req, res);
+  }
+
   res.writeHead(404);
   res.end();
 });
+
+function json(res: ServerResponse, status: number, body: unknown): void {
+  res.writeHead(status, { 'content-type': 'application/json' });
+  res.end(JSON.stringify(body));
+}
+
+/**
+ * Exchanges a Discord OAuth code for an access token.
+ *
+ * This has to happen server-side: the client secret must never reach the
+ * browser, and Discord will not issue a token without it.
+ */
+async function discordToken(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const clientId = process.env['DISCORD_CLIENT_ID'];
+  const clientSecret = process.env['DISCORD_CLIENT_SECRET'];
+  if (!clientId || !clientSecret) {
+    return json(res, 501, {
+      error: 'DISCORD_CLIENT_ID and DISCORD_CLIENT_SECRET are not set on the server',
+    });
+  }
+
+  let code: string | undefined;
+  try {
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) chunks.push(chunk as Buffer);
+    code = JSON.parse(Buffer.concat(chunks).toString()).code;
+  } catch {
+    return json(res, 400, { error: 'malformed body' });
+  }
+  if (!code) return json(res, 400, { error: 'missing code' });
+
+  try {
+    const response = await fetch('https://discord.com/api/oauth2/token', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        grant_type: 'authorization_code',
+        code,
+      }),
+    });
+
+    const payload = (await response.json()) as { access_token?: string; error?: string };
+    if (!response.ok || !payload.access_token) {
+      return json(res, 502, { error: payload.error ?? 'discord rejected the code' });
+    }
+    // Only the access token goes back — never the secret, never the raw body.
+    return json(res, 200, { access_token: payload.access_token });
+  } catch {
+    return json(res, 502, { error: 'could not reach discord' });
+  }
+}
 
 const wss = new WebSocketServer({ server: httpServer });
 
@@ -82,6 +141,31 @@ function handle(session: Session, message: ClientMessage): void {
         token: session.token,
         lobby: room.lobby(),
       });
+      return;
+    }
+
+    case 'joinInstance': {
+      // Everyone who launched the same Discord Activity lands in one room, with
+      // no code to type. The first arrival creates it.
+      // The callback is only used if this call creates the room; an existing
+      // one keeps the callback it was made with, bound to the same object.
+      const room: Room = registry.forInstance(message.instanceId, 16, {
+        onBroadcast: () => broadcastState(room),
+      });
+
+      const added = room.addHuman(message.name, session.token);
+      if ('error' in added) return send(session.socket, { type: 'error', message: added.error });
+
+      session.room = room;
+      session.seat = added.seat;
+      send(session.socket, {
+        type: 'joined',
+        code: room.code,
+        seat: added.seat,
+        token: session.token,
+        lobby: room.lobby(),
+      });
+      broadcastLobby(room);
       return;
     }
 

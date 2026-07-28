@@ -45,6 +45,13 @@ export interface LobbyInfo {
 export type ClientMessage =
   | { readonly type: 'create'; readonly name: string; readonly topValue?: number }
   | { readonly type: 'join'; readonly code: string; readonly name: string }
+  /**
+   * Join the room belonging to a Discord Activity instance, creating it if this
+   * is the first arrival. Everyone launching the Activity in the same voice
+   * channel shares an `instanceId`, so this is what puts them at one table
+   * without anyone typing a code.
+   */
+  | { readonly type: 'joinInstance'; readonly instanceId: string; readonly name: string }
   /** Reclaim a seat after a refresh or a dropped connection. */
   | { readonly type: 'resume'; readonly code: string; readonly token: string }
   | { readonly type: 'addBot'; readonly difficulty: BotDifficulty }

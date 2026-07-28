@@ -46,6 +46,8 @@ export interface OnlineGame {
 
   readonly create: (name: string, topValue: number) => void;
   readonly join: (code: string, name: string) => void;
+  /** Join the room shared by a Discord Activity instance. */
+  readonly joinInstance: (instanceId: string, name: string) => void;
   readonly addBot: (difficulty: BotDifficulty) => void;
   readonly removeSeat: (seat: number) => void;
   readonly start: () => void;
@@ -153,6 +155,7 @@ export function useOnlineGame(url: string): OnlineGame {
 
     create: (name, topValue) => send({ type: 'create', name, topValue }),
     join: (code, name) => send({ type: 'join', code: code.toUpperCase(), name }),
+    joinInstance: (instanceId, name) => send({ type: 'joinInstance', instanceId, name }),
     addBot: (difficulty) => send({ type: 'addBot', difficulty }),
     removeSeat: (target) => send({ type: 'removeSeat', seat: target }),
     start: () => send({ type: 'start' }),

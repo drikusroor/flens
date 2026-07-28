@@ -3,11 +3,25 @@ import type { Difficulty } from '@flens/bot';
 import type { TableController } from './game/controller';
 import { useFlensGame } from './game/useFlensGame';
 import { hasStoredSession, useOnlineGame } from './net/useOnlineGame';
+import { isRunningInDiscord, useDiscord } from './discord/useDiscord';
+import { DiscordTable } from './components/DiscordTable';
 import { Lobby } from './components/Lobby';
 import { Setup, type SetupChoices } from './components/Setup';
 import { Table } from './components/Table';
 
-const SERVER_URL = import.meta.env['VITE_FLENS_SERVER'] ?? 'ws://localhost:8787';
+const DISCORD_CLIENT_ID = import.meta.env['VITE_DISCORD_CLIENT_ID'] as string | undefined;
+
+/**
+ * Inside Discord the page is served from Discord's own origin and every request
+ * is routed through `/.proxy`, so the socket must be same-origin and prefixed.
+ * The exact path depends on the URL mapping configured for the application,
+ * hence the override. On the open web it points at the standalone server.
+ */
+const DISCORD_WS_PATH = (import.meta.env['VITE_DISCORD_WS_PATH'] as string | undefined) ?? '/.proxy/ws';
+
+const SERVER_URL = isRunningInDiscord()
+  ? `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${DISCORD_WS_PATH}`
+  : (import.meta.env['VITE_FLENS_SERVER'] ?? 'ws://localhost:8787');
 
 type Mode = { kind: 'menu' } | { kind: 'local'; choices: SetupChoices } | { kind: 'online' };
 
@@ -16,6 +30,8 @@ export function App() {
   const [mode, setMode] = useState<Mode>(() =>
     hasStoredSession() ? { kind: 'online' } : { kind: 'menu' },
   );
+
+  if (isRunningInDiscord()) return <DiscordApp />;
 
   switch (mode.kind) {
     case 'menu':
@@ -30,6 +46,13 @@ export function App() {
     case 'online':
       return <OnlineTable onQuit={() => setMode({ kind: 'menu' })} />;
   }
+}
+
+/** The Activity has no menu: it drops straight into the shared table. */
+function DiscordApp() {
+  const discord = useDiscord(DISCORD_CLIENT_ID);
+  const online = useOnlineGame(SERVER_URL);
+  return <DiscordTable discord={discord} online={online} />;
 }
 
 function LocalTable({ choices, onQuit }: { choices: SetupChoices; onQuit: () => void }) {

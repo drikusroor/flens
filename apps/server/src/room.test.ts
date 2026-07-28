@@ -308,6 +308,38 @@ describe('RoomRegistry', () => {
     expect(registry.get(room.code.toLowerCase())).toBe(room);
   });
 
+  it('puts everyone from one Discord instance in the same room', () => {
+    const registry = new RoomRegistry();
+    const first = registry.forInstance('instance-abc', 16, noop);
+    const second = registry.forInstance('instance-abc', 16, noop);
+
+    expect(second).toBe(first);
+    expect(registry.size).toBe(1);
+  });
+
+  it('keeps separate Discord instances apart', () => {
+    const registry = new RoomRegistry();
+    const a = registry.forInstance('instance-a', 16, noop);
+    const b = registry.forInstance('instance-b', 16, noop);
+
+    expect(a).not.toBe(b);
+    expect(registry.size).toBe(2);
+  });
+
+  it('forgets the instance mapping once its room is swept', () => {
+    const registry = new RoomRegistry();
+    const room = registry.forInstance('instance-abc', 16, noop);
+    room.addHuman('A', 'a');
+    room.disconnect('a');
+    registry.sweep();
+
+    // A later launch of the same Activity must get a fresh room, not a
+    // dangling reference to the swept one.
+    const fresh = registry.forInstance('instance-abc', 16, noop);
+    expect(fresh).not.toBe(room);
+    expect(registry.size).toBe(1);
+  });
+
   it('sweeps away rooms nobody is left in', () => {
     const registry = new RoomRegistry();
     const room = registry.create(16, noop);
