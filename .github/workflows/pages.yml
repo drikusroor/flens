@@ -1,0 +1,61 @@
+name: Deploy single-player to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  # So it can be tried by hand before main is ready, or re-run after the
+  # repository is made public.
+  workflow_dispatch:
+
+# Pages needs these; the default token is read-only.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two deployments race. Queue rather than cancel, so a run already
+# publishing is allowed to finish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # A broken engine should never reach the published page.
+      - run: npm test
+      - run: npm run typecheck
+
+      - name: Build the offline-only bundle
+        env:
+          # Project sites live at /<repo>/, so assets must resolve there.
+          VITE_BASE_PATH: /${{ github.event.repository.name }}/
+          # No server is deployed alongside this, so hide anything that needs one.
+          VITE_OFFLINE_ONLY: 'true'
+        run: npm run build --workspace @flens/web
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

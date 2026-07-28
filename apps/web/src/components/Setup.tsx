@@ -11,7 +11,8 @@ export interface SetupChoices {
 
 interface SetupProps {
   onStart: (choices: SetupChoices) => void;
-  onOnline: () => void;
+  /** Omitted in offline-only builds, where there is no server to reach. */
+  onOnline?: (() => void) | undefined;
 }
 
 export function Setup({ onStart, onOnline }: SetupProps) {
@@ -78,9 +79,11 @@ export function Setup({ onStart, onOnline }: SetupProps) {
         Play against bots
       </button>
 
-      <button type="button" className="btn" onClick={onOnline}>
-        Play online with friends
-      </button>
+      {onOnline && (
+        <button type="button" className="btn" onClick={onOnline}>
+          Play online with friends
+        </button>
+      )}
     </div>
   );
 }

@@ -12,6 +12,16 @@ import { Table } from './components/Table';
 const DISCORD_CLIENT_ID = import.meta.env['VITE_DISCORD_CLIENT_ID'] as string | undefined;
 
 /**
+ * Builds with no server behind them — GitHub Pages, an itch.io zip, a file:// copy.
+ * The engine and the bots run entirely in the browser, so single-player needs
+ * nothing else; this flag simply hides the parts that would reach for a server
+ * and fail.
+ */
+const OFFLINE_ONLY = ['true', '1'].includes(
+  String(import.meta.env['VITE_OFFLINE_ONLY'] ?? '').toLowerCase(),
+);
+
+/**
  * Inside Discord the page is served from Discord's own origin and every request
  * is routed through `/.proxy`, so the socket must be same-origin and prefixed.
  * The exact path depends on the URL mapping configured for the application,
@@ -28,17 +38,17 @@ type Mode = { kind: 'menu' } | { kind: 'local'; choices: SetupChoices } | { kind
 export function App() {
   // A refresh mid-game should land back at the table, not at the menu.
   const [mode, setMode] = useState<Mode>(() =>
-    hasStoredSession() ? { kind: 'online' } : { kind: 'menu' },
+    !OFFLINE_ONLY && hasStoredSession() ? { kind: 'online' } : { kind: 'menu' },
   );
 
-  if (isRunningInDiscord()) return <DiscordApp />;
+  if (!OFFLINE_ONLY && isRunningInDiscord()) return <DiscordApp />;
 
   switch (mode.kind) {
     case 'menu':
       return (
         <Setup
           onStart={(choices) => setMode({ kind: 'local', choices })}
-          onOnline={() => setMode({ kind: 'online' })}
+          {...(OFFLINE_ONLY ? {} : { onOnline: () => setMode({ kind: 'online' }) })}
         />
       );
     case 'local':

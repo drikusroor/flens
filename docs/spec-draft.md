@@ -94,8 +94,10 @@ packages/
 apps/
   server/        Node + WebSocket. Authoritative. Owns the deck, the RNG seed, and
                  the per-player view filtering (you must not be able to sniff hidden cards).
-  web/           React + Vite. Plain website + lobby + room codes.
-  discord/       Thin wrapper: @discord/embedded-app-sdk auth, then mounts apps/web.
+  web/           React + Vite. Plain website, lobby, room codes — and the Discord
+                 Activity, which is the same app detecting an iframe rather than a
+                 separate build. The SDK is lazily imported so web visitors never
+                 download it. Also builds offline-only for static hosting.
 ```
 
 Key properties to get right early:
@@ -130,10 +132,18 @@ A bot that never errs and always Flenses instantly is miserable to play against.
    (§5). Far cheaper to discover that in a test run than in a UI.
 2. ~~**Local hot-seat web UI**~~ **Done** — plus `packages/bot`, because the Flens
    window cannot be tested without opponents who make mistakes.
-3. **Server + sockets + room codes.** Real multiplayer on the open web. **← next**
+3. ~~**Server + sockets + room codes.**~~ **Done.** `apps/server` is authoritative:
+   clients send intent, never state, and the seat comes from a connection token
+   rather than from the message. Views are redacted per seat, and the clock is
+   extrapolated client-side so a bare heartbeat never costs a message.
 4. ~~**Bots** for single-player.~~ **Done** (basic; difficulty = error rate and reaction
    time). Worth deepening once the ruleset is settled.
-5. **Discord Activity wrapper.** Now it's mostly registration, OAuth and a manifest.
+5. ~~**Discord Activity.**~~ **Implemented, unverified** — see `docs/discord.md`. It
+   turned out *not* to want a separate `apps/discord`: an Activity is this same web app
+   in an iframe, so `apps/web` detects the context instead. A second app would have
+   meant a second copy of everything for no gain.
+6. **Static single-player build** for GitHub Pages — see `docs/deploy.md`. Free, needs
+   no hosting, and is the easiest thing to hand someone who just wants to try it.
 
 Rationale for not starting with Discord: an Activity needs an app registration, only runs
 inside a voice channel, and is fiddly to iterate on and to test with real people. It's a

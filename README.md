@@ -4,24 +4,36 @@ A digital version of **Flens** — a traditional Dutch (mostly Groninger) family
 also known as *Flintjen*, *Flenzen*, *Pankouk*, *Pang* or *Perry's spel*. It descends
 from **Perry's Spel van 16** (Perry & Co, ≥1913) and is a close cousin of Skip-Bo.
 
-Planned: a web version with real-time multiplayer, a Discord Activity, and bots for
-single-player.
-
 ## Status
 
-Playable single-player prototype: one human against bots, in the browser.
-No networking yet.
+Playable, online. Real-time multiplayer over WebSockets with room codes, plus
+single-player against bots.
+
+Single-player also builds to a **fully static site** with no server at all — that
+is what gets published to GitHub Pages.
+
+A Discord Activity is implemented but **not yet verified**: it needs a registered
+Discord application and HTTPS hosting to run at all. See
+[`docs/discord.md`](docs/discord.md).
 
 ```bash
 npm install
 npm test
-npm run dev --workspace @flens/web   # http://localhost:5173
+
+npm run dev --workspace @flens/server   # ws://localhost:8787
+npm run dev --workspace @flens/web      # http://localhost:5173
 ```
+
+Open the site, pick *Play online with friends*, create a room and share the
+four-letter code. Refreshing mid-game reclaims your seat.
 
 - [`docs/research.md`](docs/research.md) — what the game is, where it comes from, what the
   rules actually are, and which parts are uncertain.
 - [`docs/spec-draft.md`](docs/spec-draft.md) — the canonical ruleset, architecture, build
   order, and the two rules that had to be invented to make the game terminate.
+- [`docs/discord.md`](docs/discord.md) — setting up the Discord Activity, and what is
+  still untested about it.
+- [`docs/deploy.md`](docs/deploy.md) — publishing the single-player build to GitHub Pages.
 
 ## Packages
 
@@ -29,7 +41,9 @@ npm run dev --workspace @flens/web   # http://localhost:5173
 |---|---|
 | [`packages/engine`](packages/engine) | Pure, deterministic rules engine. No I/O. `reduce(state, action)`. |
 | [`packages/bot`](packages/bot) | Opponent policy. Difficulty is error rate and reaction time, not search depth. |
-| [`apps/web`](apps/web) | React prototype. Hot-seat against bots, real-time Flens window. |
+| [`packages/protocol`](packages/protocol) | Wire types shared by client and server, so they cannot drift. |
+| [`apps/server`](apps/server) | Authoritative WebSocket server. Rooms, seats, bots, reconnects. |
+| [`apps/web`](apps/web) | React client. Same table for local, online and Discord play. |
 
 ## How it plays
 
