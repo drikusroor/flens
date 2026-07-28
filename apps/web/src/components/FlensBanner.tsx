@@ -1,4 +1,4 @@
-import type { FlensGame } from '../game/useFlensGame';
+import type { TableController } from '../game/controller';
 
 /**
  * The FLENS! button is *always* live.
@@ -8,7 +8,7 @@ import type { FlensGame } from '../game/useFlensGame';
  * appears — handy for learning, but it turns the game into "press when the bar
  * shows up", which is not the game.
  */
-export function FlensBanner({ game }: { game: FlensGame }) {
+export function FlensBanner({ game }: { game: TableController }) {
   const { view, hints, infractionVisible, flensTarget } = game;
   const live = hints && infractionVisible;
   const pct = live

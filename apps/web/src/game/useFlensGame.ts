@@ -11,8 +11,9 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { newGame, reduce, viewFor, type Action, type GameState, type GameView } from '@flens/engine';
+import { newGame, reduce, viewFor, type Action, type GameState } from '@flens/engine';
 import { PROFILES, botAction, botCallsFlens, type Difficulty } from '@flens/bot';
+import type { TableController } from './controller';
 
 const TICK_MS = 100;
 export const HUMAN_SEAT = 0;
@@ -35,20 +36,8 @@ export interface GameOptions {
   readonly hints: boolean;
 }
 
-export interface FlensGame {
-  readonly view: GameView;
-  readonly hints: boolean;
-  /** Only ever true with hints on — otherwise nobody tells you. */
-  readonly infractionVisible: boolean;
-  /** Whose mistake is on the table. Null without hints. */
-  readonly flensTarget: string | null;
-  readonly isYourTurn: boolean;
-  readonly play: (from: Action extends never ? never : PlaySource, centreIndex: number) => void;
-  readonly discard: (handIndex: number, openPileIndex: number) => void;
-  readonly callFlens: () => void;
-  readonly pass: () => void;
+export interface FlensGame extends TableController {
   readonly restart: (options?: Partial<GameOptions>) => void;
-  readonly lastRejection: string | null;
 }
 
 export type PlaySource =
@@ -117,11 +106,13 @@ export function useFlensGame(initial: GameOptions): FlensGame {
 
   return {
     view,
+    seat: HUMAN_SEAT,
     hints: options.hints,
     infractionVisible,
     flensTarget: infractionVisible ? (state.players[infraction!.offender]?.name ?? null) : null,
     isYourTurn: state.currentPlayer === HUMAN_SEAT && state.phase === 'playing',
-    lastRejection: rejectionRef.current,
+    turnRemainingMs: view.turnRemainingMs,
+    lastError: rejectionRef.current,
 
     play: (from, centreIndex) => {
       apply({

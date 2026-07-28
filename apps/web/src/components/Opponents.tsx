@@ -1,9 +1,8 @@
 import type { GameView } from '@flens/engine';
-import { HUMAN_SEAT } from '../game/useFlensGame';
 import { Card, CardBack } from './Card';
 
-export function Opponents({ view }: { view: GameView }) {
-  const others = view.players.filter((p) => p.id !== HUMAN_SEAT);
+export function Opponents({ view, seat }: { view: GameView; seat: number }) {
+  const others = view.players.filter((p) => p.id !== seat);
 
   return (
     <section className="opponents">

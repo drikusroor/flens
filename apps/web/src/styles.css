@@ -493,3 +493,65 @@ button:disabled {
 .clock--low {
   color: var(--flens);
 }
+
+/* --- lobby ---------------------------------------------------------------- */
+
+.setup__field input {
+  background: #16241b;
+  color: var(--ink);
+  border: 1px solid var(--felt-edge);
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  font-family: inherit;
+  letter-spacing: 0.08em;
+}
+
+.lobby__seats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.lobby__seat {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--felt);
+  border: 1px solid var(--felt-edge);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.9rem;
+}
+
+.lobby__seat span:first-child {
+  flex: 1;
+}
+
+.lobby__seat em {
+  font-style: normal;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.lobby__tag {
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.lobby__bots {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.lobby__divider {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}

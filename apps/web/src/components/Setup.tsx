@@ -9,7 +9,12 @@ export interface SetupChoices {
   seed: number;
 }
 
-export function Setup({ onStart }: { onStart: (choices: SetupChoices) => void }) {
+interface SetupProps {
+  onStart: (choices: SetupChoices) => void;
+  onOnline: () => void;
+}
+
+export function Setup({ onStart, onOnline }: SetupProps) {
   const [opponents, setOpponents] = useState(2);
   const [difficulty, setDifficulty] = useState<Difficulty>('normal');
   const [topValue, setTopValue] = useState(16);
@@ -70,7 +75,11 @@ export function Setup({ onStart }: { onStart: (choices: SetupChoices) => void })
           onStart({ opponents, difficulty, topValue, hints, seed: Math.floor(Math.random() * 1e9) })
         }
       >
-        Deal
+        Play against bots
+      </button>
+
+      <button type="button" className="btn" onClick={onOnline}>
+        Play online with friends
       </button>
     </div>
   );

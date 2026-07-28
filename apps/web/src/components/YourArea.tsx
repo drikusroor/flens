@@ -1,9 +1,10 @@
 import type { GameView } from '@flens/engine';
-import { HUMAN_SEAT, type PlaySource } from '../game/useFlensGame';
+import type { PlaySource } from '../game/useFlensGame';
 import { Card } from './Card';
 
 interface YourAreaProps {
   view: GameView;
+  seat: number;
   selected: PlaySource | null;
   isYourTurn: boolean;
   onSelect: (source: PlaySource | null) => void;
@@ -13,13 +14,14 @@ interface YourAreaProps {
 
 export function YourArea({
   view,
+  seat,
   selected,
   isYourTurn,
   onSelect,
   onPileClick,
   onPass,
 }: YourAreaProps) {
-  const you = view.players[HUMAN_SEAT];
+  const you = view.players[seat];
   if (!you) return null;
 
   const isSelected = (source: PlaySource) =>

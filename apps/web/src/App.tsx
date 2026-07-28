@@ -1,21 +1,38 @@
 import { useState } from 'react';
 import type { Difficulty } from '@flens/bot';
-import { HUMAN_SEAT, useFlensGame, type PlaySource } from './game/useFlensGame';
-import { Centre } from './components/Centre';
-import { FlensBanner } from './components/FlensBanner';
-import { Opponents } from './components/Opponents';
-import { YourArea } from './components/YourArea';
-import { Log } from './components/Log';
+import type { TableController } from './game/controller';
+import { useFlensGame } from './game/useFlensGame';
+import { hasStoredSession, useOnlineGame } from './net/useOnlineGame';
+import { Lobby } from './components/Lobby';
 import { Setup, type SetupChoices } from './components/Setup';
+import { Table } from './components/Table';
+
+const SERVER_URL = import.meta.env['VITE_FLENS_SERVER'] ?? 'ws://localhost:8787';
+
+type Mode = { kind: 'menu' } | { kind: 'local'; choices: SetupChoices } | { kind: 'online' };
 
 export function App() {
-  const [choices, setChoices] = useState<SetupChoices | null>(null);
+  // A refresh mid-game should land back at the table, not at the menu.
+  const [mode, setMode] = useState<Mode>(() =>
+    hasStoredSession() ? { kind: 'online' } : { kind: 'menu' },
+  );
 
-  if (!choices) return <Setup onStart={setChoices} />;
-  return <Table choices={choices} onQuit={() => setChoices(null)} />;
+  switch (mode.kind) {
+    case 'menu':
+      return (
+        <Setup
+          onStart={(choices) => setMode({ kind: 'local', choices })}
+          onOnline={() => setMode({ kind: 'online' })}
+        />
+      );
+    case 'local':
+      return <LocalTable choices={mode.choices} onQuit={() => setMode({ kind: 'menu' })} />;
+    case 'online':
+      return <OnlineTable onQuit={() => setMode({ kind: 'menu' })} />;
+  }
 }
 
-function Table({ choices, onQuit }: { choices: SetupChoices; onQuit: () => void }) {
+function LocalTable({ choices, onQuit }: { choices: SetupChoices; onQuit: () => void }) {
   const game = useFlensGame({
     opponents: choices.opponents,
     difficulty: choices.difficulty as Difficulty,
@@ -24,89 +41,88 @@ function Table({ choices, onQuit }: { choices: SetupChoices; onQuit: () => void 
     hints: choices.hints,
   });
 
-  const [selected, setSelected] = useState<PlaySource | null>(null);
-  const { view } = game;
-
-  const onCentreClick = (index: number) => {
-    if (!selected || !game.isYourTurn) return;
-    game.play(selected, index);
-    setSelected(null);
-  };
-
-  const onOwnPileClick = (index: number) => {
-    if (!game.isYourTurn) return;
-    // A selected hand card dropped on your own pile is a discard, which ends
-    // your turn. Anything else means you meant to pick that pile up.
-    if (selected?.kind === 'hand') {
-      game.discard(selected.index, index);
-      setSelected(null);
-      return;
-    }
-    const pile = view.players[HUMAN_SEAT]?.openPiles[index];
-    if (pile && pile.count > 0) setSelected({ kind: 'openPile', index });
-  };
-
-  const finished = view.phase !== 'playing';
-
   return (
-    <div className="table">
-      <header className="table__header">
-        <h1>Flens</h1>
-        <div className="table__meta">
-          <span>
-            Building 1&ndash;{view.config.topValue} &middot; {view.voorraadCount} in the supply
-          </span>
-          {view.turnRemainingMs !== null && view.phase === 'playing' && (
-            <span className={view.turnRemainingMs < 10_000 ? 'clock clock--low' : 'clock'}>
-              {Math.ceil(view.turnRemainingMs / 1000)}s
-            </span>
-          )}
+    <Table
+      game={game}
+      controls={
+        <>
           <button type="button" className="btn btn--ghost" onClick={() => game.restart()}>
             New deal
           </button>
           <button type="button" className="btn btn--ghost" onClick={onQuit}>
             Change setup
           </button>
-        </div>
-      </header>
+        </>
+      }
+      result={<Result game={game} onAgain={() => game.restart()} />}
+    />
+  );
+}
 
-      <FlensBanner game={game} />
+function OnlineTable({ onQuit }: { onQuit: () => void }) {
+  const online = useOnlineGame(SERVER_URL);
 
-      <Opponents view={view} />
+  // Until the deal lands, the lobby is the whole screen.
+  if (!online.view || !online.lobby?.started) {
+    return <Lobby game={online} onBack={onQuit} />;
+  }
 
-      <Centre
-        view={view}
-        armed={selected !== null && game.isYourTurn}
-        onPick={onCentreClick}
-      />
+  const controller: TableController = {
+    view: online.view,
+    seat: online.seat ?? 0,
+    isYourTurn: online.isYourTurn,
+    turnRemainingMs: online.turnRemainingMs,
+    // The server never reveals infractions, so there is nothing to show and no
+    // hint mode online — spotting them is the game.
+    infractionVisible: false,
+    hints: false,
+    flensTarget: null,
+    lastError: online.error,
+    play: online.play,
+    discard: online.discard,
+    callFlens: online.callFlens,
+    pass: online.pass,
+  };
 
-      <YourArea
-        view={view}
-        selected={selected}
-        isYourTurn={game.isYourTurn}
-        onSelect={setSelected}
-        onPileClick={onOwnPileClick}
-        onPass={game.pass}
-      />
+  return (
+    <Table
+      game={controller}
+      controls={
+        <button
+          type="button"
+          className="btn btn--ghost"
+          onClick={() => {
+            online.leave();
+            onQuit();
+          }}
+        >
+          Leave
+        </button>
+      }
+      result={<Result game={controller} />}
+    />
+  );
+}
 
-      {game.lastRejection && <p className="rejection">{game.lastRejection}</p>}
+function Result({ game, onAgain }: { game: TableController; onAgain?: () => void }) {
+  const { view } = game;
+  if (view.phase === 'playing') return null;
 
-      {finished && (
-        <div className="result">
-          <h2>
-            {view.phase === 'stalemate'
-              ? 'Draw — nobody could move'
-              : view.winner === HUMAN_SEAT
-                ? 'You win!'
-                : `${view.players[view.winner ?? 0]?.name} wins`}
-          </h2>
-          <button type="button" className="btn" onClick={() => game.restart()}>
-            Play again
-          </button>
-        </div>
+  const heading =
+    view.phase === 'stalemate'
+      ? 'Draw — nobody could move'
+      : view.winner === game.seat
+        ? 'You win!'
+        : `${view.players[view.winner ?? 0]?.name} wins`;
+
+  return (
+    <div className="result">
+      <h2>{heading}</h2>
+      {onAgain && (
+        <button type="button" className="btn" onClick={onAgain}>
+          Play again
+        </button>
       )}
-
-      <Log entries={view.log} />
     </div>
   );
 }
