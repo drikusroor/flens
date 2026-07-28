@@ -9,9 +9,20 @@ single-player.
 
 ## Status
 
-Research phase. Nothing is implemented yet.
+Rules engine done and tested. No UI yet.
 
 - [`docs/research.md`](docs/research.md) — what the game is, where it comes from, what the
   rules actually are, and which parts are uncertain.
-- [`docs/spec-draft.md`](docs/spec-draft.md) — a proposed canonical ruleset, architecture,
-  and build order.
+- [`docs/spec-draft.md`](docs/spec-draft.md) — the canonical ruleset, architecture, build
+  order, and the two rules that had to be invented to make the game terminate.
+
+## Packages
+
+| Path | What |
+|---|---|
+| [`packages/engine`](packages/engine) | Pure, deterministic rules engine. No I/O. `reduce(state, action)`. |
+
+```bash
+npm install
+npm test
+```

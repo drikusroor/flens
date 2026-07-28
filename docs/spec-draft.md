@@ -1,82 +1,84 @@
 # Flens — draft game spec & build plan
 
-Draft v0.1. Depends on [`research.md`](./research.md). Everything marked **[?]** is a
+Draft v0.2. Depends on [`research.md`](./research.md). Everything marked **[?]** is a
 decision waiting on the user; everything else is a proposed default I'd build unless told
 otherwise.
+
+**Decisions taken** (see §1): hybrid Flens model, turn-based with a ~6s Flens window,
+`topValue` configurable and defaulting to 16. The ruleset in §1 is implemented in
+`packages/engine`; §5 records two rules that had to be invented to make it terminate.
 
 ---
 
 ## 1. Canonical ruleset ("Flens v1")
 
-One concrete ruleset, chosen from the variants in `research.md`, so the engine has
-something to implement. Variants stay configurable.
+Implemented in `packages/engine`. Every variant the sources disagree about is a config
+knob (`FlensConfig`), so changing your mind is a one-line edit plus a test run.
 
 ### Components
 
-- **Deck:** 8 series of **1–15** = **120 cards**. **[?]** (1–16 is the historical
-  alternative.)
+- **Deck:** `seriesCount` × 1..`topValue`. Default **8 × 1–16 = 128 cards**.
+  Perry's original was 1–16; the "Pang" write-ups say 1–15. Both play fine.
 - **Players:** 2–6.
 
 ### Setup
 
 Per player:
 
-- **Flensstok** — 10 cards face down; top card face up. *This is what you race to empty.*
+- **Flensstok** — 10 cards face down, top card face up. *This is what you race to empty.*
 - **Hand** — 5 cards, private.
-- **Open stapels** — 4 empty personal discard piles, top card visible to everyone. **[?]**
-  (count is not attested; 4 is the Skip-Bo convention.)
+- **Open stapels** — 4 personal discard piles, tops visible to everyone. **[?]** (count is
+  not attested; 4 is the Skip-Bo convention.)
 
 Shared:
 
-- **Voorraad** — remaining cards, dealt out in packets of 5 on request.
-- **Midden** — up to 4 centre build piles, each running 1 → 15. A completed run is
-  cleared and its cards return to the bottom of the voorraad.
+- **Voorraad** — the rest of the deck, handed out in packets of 5.
+- **Midden** — 4 centre build piles, each running 1 → `topValue`. A completed run is
+  cleared out and recycled.
 
 ### Turn
 
-1. Refill hand to 5 at the start of your turn.
-2. Play as many cards as you like/can to the centre, from **hand**, **top of flensstok**,
+1. Play as many cards as you can/like to the centre, from **hand**, **top of flensstok**,
    or **top of any of your own open piles**.
-3. **Priority rule (`voorrang`):** if a legal centre play exists, you must make one.
+2. **Priority rule (`voorrang`):** if a legal centre play exists, you must make one.
    Ending your turn with a playable card is a Flens-able offence.
-4. **Flensstok priority:** if the flensstok top card is legally playable to the centre,
-   it must be played before an equivalent card from hand.
-5. If hand empties mid-turn, take a fresh packet of 5 and keep going.
-6. End the turn by discarding **one** card from hand onto one of your own open piles.
-7. Play passes clockwise.
+3. **Flensstok priority:** a playable flensstok top must go before an equivalent hand card.
+4. **Refill:** when your hand is completely empty you take a fresh packet of 5 — including
+   mid-turn, and you keep playing. (`refill: 'whenEmpty'`, the traditional packet rule.
+   `'everyTurn'` gives the Skip-Bo top-up instead.)
+5. End the turn by discarding **one** card from hand onto one of your own open piles.
+6. Play passes clockwise.
+
+Once the supply is exhausted a player with an empty hand and nothing playable may **pass**.
+A full round of passes is a draw.
 
 ### Winning
 
-First player to empty their **flensstok** wins. **[?]** (alternative: get rid of all
-cards.)
+First player to empty their **flensstok**. (`winCondition: 'allCards'` switches to shedding
+everything.)
 
-### The Flens call
+### The Flens call — hybrid model
 
-Recommended: **option C, hybrid** (from `research.md` §4).
-
-- The engine refuses **impossible** actions (a card you don't hold, a pile that doesn't
-  exist) — these are UI bugs, not gameplay.
-- The engine **permits and records** *judgement* errors:
-  - playing an out-of-sequence card onto a centre pile,
-  - ending a turn while a legal centre play existed (priority violation),
-  - discarding from the flensstok instead of hand, etc.
-- Any other player may press **FLENS!** while the error is still the most recent
-  unresolved one.
-  - **First valid caller wins** — resolved server-side by receipt order, with a short
-    grace window so latency doesn't decide it. **[?]**
-  - **Reward:** the caller hands their largest open pile to the offender, who must
-    absorb it under their own. **[?]** (matches "give your open pile to the offender")
-  - **False call penalty:** the caller draws 2 cards onto their own flensstok. **[?]**
-    (not attested; needed to stop spam.)
-- A **Flens window** of ~5s **[?]** after each error, after which it goes unpunished.
-- On completing a 1→15 run the completing player may shout **PANKOUK!** — cosmetic,
-  a celebration, no mechanical effect.
+- **Impossible** actions are rejected outright: a card you don't hold, a pile that doesn't
+  exist, acting out of turn. These are UI bugs or cheating, never gameplay.
+- **Judgement** errors are *allowed to land* and recorded as an `Infraction`:
+  - `outOfSequence` — a card that doesn't continue the pile,
+  - `missedCentrePlay` — ending your turn with a legal play available,
+  - `ignoredFlensstok` — playing from hand when the flensstok top was equally playable.
+- Any other player may hit **FLENS!** during a **6 second window**. First valid caller wins.
+  - **Caught:** an out-of-sequence card comes back off the pile, and the caller's largest
+    open pile is dumped *underneath* the offender's deepest pile — burying what they were
+    about to play.
+  - **Uncaught:** the error **stands** and the pile continues from the wrong value. You got
+    away with it. (`uncaughtErrorsStand: false` reverts instead.)
+  - **False call:** 2 cards onto your own flensstok. **[?]** Not attested, but without a
+    cost everyone just mashes the button.
+- Completing a run is worth a **PANKOUK!** — cosmetic only.
 
 ### Clock
 
-Per-turn timer (default 30s **[?]**). Without one the observation game disappears.
-
----
+Turn-based. The Flens window (6s) is where the time pressure actually lives; the per-turn
+timer (45s, `null` to disable) only exists to stop someone stalling.
 
 ## 2. Architecture
 
@@ -123,9 +125,9 @@ A bot that never errs and always Flenses instantly is miserable to play against.
 
 **Web first, Discord second.** Concretely:
 
-1. **`packages/engine` + tests.** No UI at all. The rules are the risky part — they're
-   reconstructed from oral tradition and will change once the user's family variant is
-   confirmed. Pin them down in code with tests while they're cheap to change.
+1. ~~**`packages/engine` + tests.**~~ **Done.** No UI at all. The rules were the risky
+   part — reconstructed from oral tradition, and two of them turned out not to terminate
+   (§5). Far cheaper to discover that in a test run than in a UI.
 2. **Local hot-seat web UI** on top of the engine. Fastest way to *feel* whether the
    ruleset is actually fun, especially the Flens window.
 3. **Server + sockets + room codes.** Real multiplayer on the open web.
@@ -139,13 +141,60 @@ nothing extra; doing it first blocks everything on setup.
 
 ---
 
-## 4. Decisions needed before step 1
+## 4. Still open
 
-See `research.md` → Open questions. The three that actually change the code:
+Answered so far: hybrid Flens model, turn-based, `topValue` kept flexible (default 16).
 
-1. **Flens mechanic: A, B or C?** Determines whether the engine is a validator or a
-   recorder — the single most structural choice here.
-2. **Turn-based (with clock) or simultaneous free-for-all?** Changes the entire
-   networking model.
-3. **The user's family variant** — deck range, pile counts, win condition. The user is a
-   better primary source than anything online.
+Still worth checking against the user's memory — all cheap to change:
+
+1. **Open piles per player** — 4 is a guess borrowed from Skip-Bo.
+2. **Win condition** — empty the flensstok, or shed everything?
+3. **False-call penalty** — did their family punish a wrong "Flens!" at all?
+4. **Deck running out** — was there a rule for it? See §5.
+5. **"Pankouk!"** — did they shout it, or only "Flens!"?
+
+## 5. Rules that had to be invented
+
+Playing thousands of bot-vs-bot games surfaced two ways the reconstructed ruleset fails to
+terminate. Neither is attested in any source; both are config flags, defaulting on.
+
+### `recycleBuriedCards` — stops the supply dying
+
+Cards return to the supply only when a full 1→topValue run completes. Everything else
+drains steadily into open piles and stays there. Result: the voorraad empties while runs
+are still half-built, players run out of cards to draw, and the game grinds to a halt.
+**Roughly 22% of two-player games ended in a draw.**
+
+The fix: when the supply *and* the completed runs are both exhausted, take every buried
+card (anything below a visible pile top — unreachable by anyone, by definition) and shuffle
+it back into the supply. Draw rate drops to ~0.
+
+Worth asking the user: did their family have a rule for the deck running out?
+
+### `idleTurnsBeforeStalemate` — stops the engine hanging
+
+A rarer, nastier failure. Only the *top* card of a flensstok is reachable, so if every
+remaining `1` is buried inside a flensstok while all centre piles sit empty, no pile can
+ever be started — and because hands keep refilling, nobody is ever "stuck" enough to pass.
+The game livelocks forever. This is a server hazard, not just a bad game.
+
+Two defences:
+
+- `newGame` refuses to deal a position with no reachable `1` (it reshuffles instead).
+- The engine tracks turns since the last legal centre play and calls a draw at 50.
+
+Skip-Bo solves the same structural problem with 18 wild cards. Flens has no wilds, so it
+needs a different answer.
+
+### Current draw rate
+
+Against a deliberately unsophisticated greedy bot, across 60 seeds per configuration:
+
+| Table | Draws |
+|---|---|
+| 2 players | 0–1.7% |
+| 3 players | 0–1.7% |
+| 4 players | 0–1.7% |
+| 6 players | 0% |
+
+Games settle in ~200 actions. Real players should draw less often than the bot does.
