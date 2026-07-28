@@ -1,0 +1,32 @@
+import type { GameView } from '@flens/engine';
+import { HUMAN_SEAT } from '../game/useFlensGame';
+import { Card, CardBack } from './Card';
+
+export function Opponents({ view }: { view: GameView }) {
+  const others = view.players.filter((p) => p.id !== HUMAN_SEAT);
+
+  return (
+    <section className="opponents">
+      {others.map((player) => (
+        <div
+          key={player.id}
+          className={`seat ${view.currentPlayer === player.id ? 'seat--active' : ''}`}
+        >
+          <div className="seat__name">
+            {player.name}
+            <span className="seat__stok">flensstok {player.flensstokCount}</span>
+          </div>
+          <div className="seat__cards">
+            <Card card={player.flensstokTop} depth={player.flensstokCount} label="stok" />
+            <CardBack count={player.handCount} label="hand" />
+            <div className="seat__piles">
+              {player.openPiles.map((pile, index) => (
+                <Card key={index} card={pile.top} depth={pile.count} />
+              ))}
+            </div>
+          </div>
+        </div>
+      ))}
+    </section>
+  );
+}

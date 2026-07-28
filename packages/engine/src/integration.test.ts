@@ -8,8 +8,17 @@
 import { describe, expect, it } from 'vitest';
 import { availableCentrePlays } from './legality.js';
 import { reduce } from './reduce.js';
-import { newGame } from './setup.js';
+import { newGame, type NewGameOptions } from './setup.js';
 import type { Action, GameState } from './types.js';
+
+/**
+ * Bots act instantly, and the harness jumps the clock forward to expire Flens
+ * windows — so the turn timer, which exists to stop a *human* stalling, would
+ * fire constantly and meaninglessly here.
+ */
+function game(options: NewGameOptions): GameState {
+  return newGame({ ...options, config: { ...options.config, turnTimeoutMs: null } });
+}
 
 /** Every card in the game, wherever it currently sits. */
 function countCards(state: GameState): number {
@@ -87,7 +96,7 @@ function playOut(state: GameState, maxSteps = 20_000): RunResult {
 
 describe('a full game', () => {
   it('reaches a winner', () => {
-    const start = newGame({ playerNames: ['Ada', 'Bram', 'Cato'], seed: 7 });
+    const start = game({ playerNames: ['Ada', 'Bram', 'Cato'], seed: 7 });
     const { state } = playOut(start);
 
     expect(state.phase).toBe('finished');
@@ -96,7 +105,7 @@ describe('a full game', () => {
   });
 
   it('conserves every card from deal to finish', () => {
-    const start = newGame({ playerNames: ['Ada', 'Bram'], seed: 3 });
+    const start = game({ playerNames: ['Ada', 'Bram'], seed: 3 });
     const deckSize = start.config.topValue * start.config.seriesCount;
     expect(countCards(start)).toBe(deckSize);
 
@@ -112,7 +121,7 @@ describe('a full game', () => {
 
     for (let seed = 1; seed <= 40; seed++) {
       for (const count of [2, 3, 4, 6]) {
-        const start = newGame({ playerNames: names.slice(0, count), seed });
+        const start = game({ playerNames: names.slice(0, count), seed });
         const { state, steps } = playOut(start);
 
         expect(state.phase, `${count}p seed ${seed} never terminated`).not.toBe('playing');
@@ -130,7 +139,7 @@ describe('a full game', () => {
 
     for (let seed = 1; seed <= 40; seed++) {
       for (const count of [2, 3, 4]) {
-        const { state } = playOut(newGame({ playerNames: names.slice(0, count), seed }));
+        const { state } = playOut(game({ playerNames: names.slice(0, count), seed }));
         if (state.phase === 'stalemate') draws++;
       }
     }
@@ -140,14 +149,14 @@ describe('a full game', () => {
   });
 
   it('a rule-abiding bot never commits an infraction', () => {
-    const start = newGame({ playerNames: ['Ada', 'Bram'], seed: 11 });
+    const start = game({ playerNames: ['Ada', 'Bram'], seed: 11 });
     const { state } = playOut(start);
 
     expect(state.log.some((e) => e.message.includes('infraction'))).toBe(false);
   });
 
   it('plays the 1..15 variant just as happily', () => {
-    const start = newGame({
+    const start = game({
       playerNames: ['Ada', 'Bram'],
       seed: 5,
       config: { topValue: 15 },

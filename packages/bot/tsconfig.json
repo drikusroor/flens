@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["vitest/globals"],
+    "paths": {
+      "@flens/engine": ["../engine/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"]
+}

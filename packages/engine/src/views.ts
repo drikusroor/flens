@@ -34,17 +34,31 @@ export interface GameView {
   readonly phase: GameState['phase'];
   readonly winner: number | null;
   /**
-   * The open infraction, if the window is still running. Deliberately visible:
-   * spotting it is the player's job, but the client needs to know a call is
-   * live so it can enable the FLENS! button and run the countdown.
+   * The open infraction — **null unless `revealInfractions` was requested**.
+   *
+   * Spotting a mistake is the entire skill of the game. A client that were told
+   * "an infraction is live" could just wire the FLENS! button to that flag and
+   * never look at the table, so by default this is withheld and a player has to
+   * decide for themselves whether to call.
    */
   readonly pendingInfraction: Infraction | null;
   readonly flensWindowRemainingMs: number;
+  /** Time left in the current turn, or null when the turn timer is off. */
+  readonly turnRemainingMs: number | null;
   readonly log: GameState['log'];
 }
 
-export function viewFor(state: GameState, playerId: number): GameView {
-  const infraction = state.pendingInfraction;
+export interface ViewOptions {
+  /**
+   * Reveal the open infraction and the countdown. For practice modes, replays
+   * and debugging — never for a competitive seat.
+   */
+  readonly revealInfractions?: boolean;
+}
+
+export function viewFor(state: GameState, playerId: number, options: ViewOptions = {}): GameView {
+  const reveal = options.revealInfractions === true;
+  const infraction = reveal ? state.pendingInfraction : null;
   const remaining =
     infraction === null
       ? 0
@@ -70,6 +84,10 @@ export function viewFor(state: GameState, playerId: number): GameView {
     winner: state.winner,
     pendingInfraction: remaining > 0 ? infraction : null,
     flensWindowRemainingMs: remaining,
-    log: state.log,
+    turnRemainingMs:
+      state.config.turnTimeoutMs === null
+        ? null
+        : Math.max(0, state.config.turnTimeoutMs - (state.now - state.turnStartedAt)),
+    log: reveal ? state.log : state.log.filter((entry) => entry.secret !== true),
   };
 }

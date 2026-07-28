@@ -12,5 +12,5 @@ export {
   topOf,
   type CentrePlay,
 } from './legality.js';
-export { viewFor, type GameView, type PublicPlayerView } from './views.js';
+export { viewFor, type GameView, type PublicPlayerView, type ViewOptions } from './views.js';
 export { nextRandom, shuffle } from './rng.js';

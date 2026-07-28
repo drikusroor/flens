@@ -23,6 +23,7 @@ export interface Draft {
   winner: number | null;
   consecutivePasses: number;
   idleTurns: number;
+  turnStartedAt: number;
   pendingInfraction: Infraction | null;
   log: LogEntry[];
 }
@@ -47,6 +48,7 @@ export function toDraft(state: GameState): Draft {
     winner: state.winner,
     consecutivePasses: state.consecutivePasses,
     idleTurns: state.idleTurns,
+    turnStartedAt: state.turnStartedAt,
     pendingInfraction: state.pendingInfraction,
     log: [...state.log],
   };
@@ -72,11 +74,12 @@ export function fromDraft(draft: Draft): GameState {
     winner: draft.winner,
     consecutivePasses: draft.consecutivePasses,
     idleTurns: draft.idleTurns,
+    turnStartedAt: draft.turnStartedAt,
     pendingInfraction: draft.pendingInfraction,
     log: draft.log,
   };
 }
 
-export function note(draft: Draft, message: string): void {
-  draft.log.push({ at: draft.now, message });
+export function note(draft: Draft, message: string, secret = false): void {
+  draft.log.push(secret ? { at: draft.now, message, secret } : { at: draft.now, message });
 }

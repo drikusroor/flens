@@ -174,6 +174,8 @@ export interface GameState {
   readonly consecutivePasses: number;
   /** Turns since anyone last played a card to the centre legally. */
   readonly idleTurns: number;
+  /** Engine time the current turn began, for `turnTimeoutMs`. */
+  readonly turnStartedAt: number;
 
   /** The one infraction currently open to a FLENS! call, if any. */
   readonly pendingInfraction: Infraction | null;
@@ -184,6 +186,12 @@ export interface GameState {
 export interface LogEntry {
   readonly at: number;
   readonly message: string;
+  /**
+   * Entries that would give away an unresolved mistake. Noticing an infraction
+   * is the player's job, so these are withheld from views by default — a client
+   * that could read them would never need to watch the table.
+   */
+  readonly secret?: boolean;
 }
 
 // ---------------------------------------------------------------------------

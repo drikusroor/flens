@@ -76,6 +76,7 @@ export function scenario(spec: ScenarioSpec): GameState {
     winner: null,
     consecutivePasses: 0,
     idleTurns: 0,
+    turnStartedAt: 0,
     pendingInfraction: null,
     log: [],
   };

@@ -266,7 +266,82 @@ function handleTick(state: GameState, action: Extract<Action, { type: 'tick' }>)
   const draft = toDraft(state);
   draft.now += action.ms;
   settleExpiredInfraction(draft);
+  enforceTurnTimeout(draft);
   return accept(draft);
+}
+
+/**
+ * Stops a turn hanging forever when nobody acts.
+ *
+ * The engine has no wall clock, so this only fires when someone feeds it ticks —
+ * which is exactly what a server (or the local game loop) does. Timing out is
+ * treated as an ordinary turn ending, so a player who times out with a legal
+ * play still on the table commits the usual `missedCentrePlay` infraction.
+ */
+function enforceTurnTimeout(draft: Draft): void {
+  const limit = draft.config.turnTimeoutMs;
+  if (limit === null || draft.phase !== 'playing') return;
+  if (draft.now - draft.turnStartedAt < limit) return;
+
+  const player = draft.players[draft.currentPlayer];
+  if (!player) return;
+
+  // With an empty hand you cannot discard, so make a play if one exists —
+  // otherwise there is genuinely nothing to do but pass.
+  if (player.hand.length === 0) {
+    const plays = availableCentrePlays(fromDraft(draft), draft.currentPlayer);
+    const play = plays[0];
+    if (play) {
+      note(draft, `${player.name} ran out of time; the table plays ${play.card.value} for them`);
+      removeFrom(player, play.from);
+      draft.centre[play.centreIndex]!.cards.push(play.card);
+      draft.idleTurns = 0;
+      clearCompletedRuns(draft);
+      refillIfNeeded(draft, player);
+      draft.turnStartedAt = draft.now;
+      checkWin(draft, player.id);
+      return;
+    }
+
+    note(draft, `${player.name} ran out of time and passes`);
+    draft.consecutivePasses += 1;
+    if (draft.consecutivePasses >= draft.players.length) {
+      draft.phase = 'stalemate';
+      note(draft, 'nobody can move — the game is a draw');
+      return;
+    }
+    draft.idleTurns += 1;
+    if (!checkStalemate(draft)) advanceTurn(draft);
+    return;
+  }
+
+  const missed =
+    draft.config.centrePriority &&
+    availableCentrePlays(fromDraft(draft), draft.currentPlayer).length > 0;
+
+  let target = 0;
+  player.openPiles.forEach((pile, index) => {
+    if (pile.length < player.openPiles[target]!.length) target = index;
+  });
+  const card = player.hand.splice(0, 1)[0]!;
+  player.openPiles[target]!.push(card);
+  note(draft, `${player.name} ran out of time and discards ${card.value}`);
+  draft.consecutivePasses = 0;
+
+  if (missed) {
+    openInfraction(draft, {
+      kind: 'missedCentrePlay',
+      offender: player.id,
+      at: draft.now,
+      detail: 'ended the turn while a legal centre play was available',
+    });
+  }
+
+  checkWin(draft, player.id);
+  if (draft.phase === 'playing') {
+    draft.idleTurns += 1;
+    if (!checkStalemate(draft)) advanceTurn(draft);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -294,7 +369,11 @@ function removeFrom(player: Draft['players'][number], source: CardSource): void 
 function openInfraction(draft: Draft, infraction: Infraction): void {
   if (draft.pendingInfraction) settleInfraction(draft, draft.pendingInfraction);
   draft.pendingInfraction = infraction;
-  note(draft, `infraction by ${draft.players[infraction.offender]!.name}: ${infraction.detail}`);
+  note(
+    draft,
+    `infraction by ${draft.players[infraction.offender]!.name}: ${infraction.detail}`,
+    true,
+  );
 }
 
 function settleExpiredInfraction(draft: Draft): void {
@@ -308,7 +387,7 @@ function settleExpiredInfraction(draft: Draft): void {
 /** Nobody called in time. Either the error stands, or we quietly undo it. */
 function settleInfraction(draft: Draft, infraction: Infraction): void {
   if (draft.config.uncaughtErrorsStand) {
-    note(draft, `${draft.players[infraction.offender]!.name} got away with it`);
+    note(draft, `${draft.players[infraction.offender]!.name} got away with it`, true);
     return;
   }
   if (infraction.kind === 'outOfSequence' && infraction.revert) {
@@ -317,7 +396,7 @@ function settleInfraction(draft: Draft, infraction: Infraction): void {
     if (pile && top && top.id === infraction.revert.card.id) {
       pile.cards.pop();
       draft.players[infraction.offender]!.hand.push(top);
-      note(draft, `uncaught error reverted (${infraction.detail})`);
+      note(draft, `uncaught error reverted (${infraction.detail})`, true);
     }
   }
 }
@@ -394,6 +473,7 @@ function replenish(draft: Draft): boolean {
 
 function advanceTurn(draft: Draft): void {
   draft.currentPlayer = (draft.currentPlayer + 1) % draft.players.length;
+  draft.turnStartedAt = draft.now;
   refillForTurn(draft, draft.players[draft.currentPlayer]!);
 }
 

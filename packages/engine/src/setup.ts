@@ -77,6 +77,7 @@ export function newGame({ playerNames, seed = 1, config: overrides }: NewGameOpt
     winner: null,
     consecutivePasses: 0,
     idleTurns: 0,
+    turnStartedAt: 0,
     pendingInfraction: null,
     log: [{ at: 0, message: `Game started with ${playerNames.length} players` }],
   };

@@ -62,7 +62,59 @@ describe('viewFor', () => {
   });
 });
 
+describe('infractions are withheld by default', () => {
+  const afterBadPlay = (): GameState => {
+    const state = scenario({
+      players: [{ hand: [9, 12] }, {}],
+      centre: [[1, 2, 3]],
+    });
+    const result = reduce(state, {
+      type: 'play',
+      player: 0,
+      from: { kind: 'hand', index: 0 },
+      to: { kind: 'centre', index: 0 },
+    });
+    if (!result.ok) throw new Error(result.reason);
+    return result.state;
+  };
+
+  it('hides the pending infraction from an ordinary seat', () => {
+    const state = afterBadPlay();
+    expect(state.pendingInfraction).not.toBeNull();
+
+    const view = viewFor(state, 1);
+    expect(view.pendingInfraction).toBeNull();
+    expect(view.flensWindowRemainingMs).toBe(0);
+  });
+
+  it('keeps the mistake out of the log too', () => {
+    const view = viewFor(afterBadPlay(), 1);
+    expect(view.log.some((e) => e.message.includes('infraction'))).toBe(false);
+  });
+
+  it('leaks nothing about it in the serialised payload', () => {
+    const payload = JSON.stringify(viewFor(afterBadPlay(), 1));
+    expect(payload).not.toContain('infraction');
+    expect(payload).not.toContain('expecting');
+  });
+
+  it('still shows the played card, since that is on the table for all to see', () => {
+    const view = viewFor(afterBadPlay(), 1);
+    expect(view.centre[0]!.cards.at(-1)?.value).toBe(9);
+  });
+
+  it('reveals everything when explicitly asked', () => {
+    const view = viewFor(afterBadPlay(), 1, { revealInfractions: true });
+
+    expect(view.pendingInfraction).toMatchObject({ kind: 'outOfSequence', offender: 0 });
+    expect(view.flensWindowRemainingMs).toBeGreaterThan(0);
+    expect(view.log.some((e) => e.message.includes('infraction'))).toBe(true);
+  });
+});
+
 describe('the Flens window in a view', () => {
+  const reveal = { revealInfractions: true } as const;
+
   it('counts down and then disappears', () => {
     const state = scenario({
       players: [{ hand: [9] }, {}],
@@ -78,15 +130,15 @@ describe('the Flens window in a view', () => {
     });
     if (!bad.ok) throw new Error(bad.reason);
 
-    expect(viewFor(bad.state, 1).flensWindowRemainingMs).toBe(6000);
+    expect(viewFor(bad.state, 1, reveal).flensWindowRemainingMs).toBe(6000);
 
     const ticked = reduce(bad.state, { type: 'tick', ms: 2000 });
     if (!ticked.ok) throw new Error(ticked.reason);
-    expect(viewFor(ticked.state, 1).flensWindowRemainingMs).toBe(4000);
+    expect(viewFor(ticked.state, 1, reveal).flensWindowRemainingMs).toBe(4000);
 
     const expired = reduce(ticked.state, { type: 'tick', ms: 5000 });
     if (!expired.ok) throw new Error(expired.reason);
-    expect(viewFor(expired.state, 1).pendingInfraction).toBeNull();
-    expect(viewFor(expired.state, 1).flensWindowRemainingMs).toBe(0);
+    expect(viewFor(expired.state, 1, reveal).pendingInfraction).toBeNull();
+    expect(viewFor(expired.state, 1, reveal).flensWindowRemainingMs).toBe(0);
   });
 });

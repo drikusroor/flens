@@ -128,10 +128,11 @@ A bot that never errs and always Flenses instantly is miserable to play against.
 1. ~~**`packages/engine` + tests.**~~ **Done.** No UI at all. The rules were the risky
    part — reconstructed from oral tradition, and two of them turned out not to terminate
    (§5). Far cheaper to discover that in a test run than in a UI.
-2. **Local hot-seat web UI** on top of the engine. Fastest way to *feel* whether the
-   ruleset is actually fun, especially the Flens window.
-3. **Server + sockets + room codes.** Real multiplayer on the open web.
-4. **Bots** for single-player.
+2. ~~**Local hot-seat web UI**~~ **Done** — plus `packages/bot`, because the Flens
+   window cannot be tested without opponents who make mistakes.
+3. **Server + sockets + room codes.** Real multiplayer on the open web. **← next**
+4. ~~**Bots** for single-player.~~ **Done** (basic; difficulty = error rate and reaction
+   time). Worth deepening once the ruleset is settled.
 5. **Discord Activity wrapper.** Now it's mostly registration, OAuth and a manifest.
 
 Rationale for not starting with Discord: an Activity needs an app registration, only runs
@@ -198,3 +199,30 @@ Against a deliberately unsophisticated greedy bot, across 60 seeds per configura
 | 6 players | 0% |
 
 Games settle in ~200 actions. Real players should draw less often than the bot does.
+
+---
+
+## 6. Two things the prototype taught us
+
+### Telling the client about an infraction destroys the game
+
+`viewFor` originally handed the open infraction straight to every seat, so the UI could
+light up the FLENS! button and run a countdown. That is a complete giveaway: a client
+could wire the button to the flag and never look at the table again. Spotting the mistake
+*is* the skill.
+
+`viewFor` now withholds the pending infraction and filters `secret` log entries unless
+`revealInfractions` is passed. The button is always live and nothing prompts you. The
+prototype keeps a *"show me the mistakes"* toggle for learning and debugging, and it is
+off by default.
+
+This matters more for the server than for the prototype: the redaction has to live in the
+engine, because anything the server sends is readable in a browser's network tab.
+
+### `turnTimeoutMs` was decorative
+
+It sat in the config doing nothing, which was discovered the moment a human sat at the
+table and the game simply froze on their turn — bots only move when it is their turn, so
+one idle player halts everything. It is now enforced on `tick`: a timed-out player is
+discarded for (and still commits the usual `missedCentrePlay` infraction if a play was
+available), or the table plays for them when their hand is empty.

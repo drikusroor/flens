@@ -315,6 +315,104 @@ describe('passing and stalemate', () => {
   });
 });
 
+describe('the turn timer', () => {
+  it('does nothing while there is time left', () => {
+    const state = scenario({
+      players: [{ hand: [12, 13] }, {}],
+      centre: [[1, 2, 3]],
+      config: { turnTimeoutMs: 30_000 },
+    });
+
+    const next = ok(state, { type: 'tick', ms: 29_000 });
+    expect(next.currentPlayer).toBe(0);
+    expect(values(next.players[0]!.hand)).toEqual([12, 13]);
+  });
+
+  it('discards for a player who stalls, and passes the turn on', () => {
+    const state = scenario({
+      players: [{ hand: [12, 13] }, {}],
+      centre: [[1, 2, 3]],
+      config: { turnTimeoutMs: 30_000, centrePriority: false },
+    });
+
+    const next = ok(state, { type: 'tick', ms: 30_000 });
+
+    expect(next.currentPlayer).toBe(1);
+    expect(values(next.players[0]!.hand)).toEqual([13]);
+    expect(next.log.some((e) => e.message.includes('ran out of time'))).toBe(true);
+  });
+
+  it('still counts as a missed play if one was available', () => {
+    const state = scenario({
+      players: [{ hand: [4, 13] }, {}],
+      centre: [[1, 2, 3]],
+      config: { turnTimeoutMs: 30_000, centrePriority: true },
+    });
+
+    const next = ok(state, { type: 'tick', ms: 30_000 });
+
+    expect(next.pendingInfraction).toMatchObject({ kind: 'missedCentrePlay', offender: 0 });
+  });
+
+  it('plays for a stalling player who has no hand to discard from', () => {
+    const state = scenario({
+      players: [{ hand: [], openPiles: [[4]] }, {}],
+      centre: [[1, 2, 3]],
+      voorraad: [],
+      config: { turnTimeoutMs: 30_000 },
+    });
+
+    const next = ok(state, { type: 'tick', ms: 30_000 });
+
+    expect(values(next.centre[0]!.cards)).toEqual([1, 2, 3, 4]);
+  });
+
+  it('passes for a stalling player who can do nothing at all', () => {
+    const state = scenario({
+      players: [
+        { hand: [], flensstok: [16], openPiles: [[9]] },
+        { hand: [], flensstok: [16], openPiles: [[9]] },
+      ],
+      centre: [[1, 2, 3]],
+      voorraad: [],
+      config: { turnTimeoutMs: 30_000 },
+    });
+
+    const next = ok(state, { type: 'tick', ms: 30_000 });
+    expect(next.currentPlayer).toBe(1);
+  });
+
+  it('restarts the clock for the next player', () => {
+    const state = scenario({
+      players: [{ hand: [12, 13] }, { hand: [12, 13] }],
+      centre: [[1, 2, 3]],
+      config: { turnTimeoutMs: 30_000, centrePriority: false },
+    });
+
+    const afterFirst = ok(state, { type: 'tick', ms: 30_000 });
+    expect(afterFirst.currentPlayer).toBe(1);
+
+    // Player 1 gets a full window of their own, not the leftovers.
+    const soonAfter = ok(afterFirst, { type: 'tick', ms: 29_000 });
+    expect(soonAfter.currentPlayer).toBe(1);
+
+    const later = ok(soonAfter, { type: 'tick', ms: 2_000 });
+    expect(later.currentPlayer).toBe(0);
+  });
+
+  it('can be switched off entirely', () => {
+    const state = scenario({
+      players: [{ hand: [12, 13] }, {}],
+      centre: [[1, 2, 3]],
+      config: { turnTimeoutMs: null },
+    });
+
+    const next = ok(state, { type: 'tick', ms: 10_000_000 });
+    expect(next.currentPlayer).toBe(0);
+    expect(values(next.players[0]!.hand)).toEqual([12, 13]);
+  });
+});
+
 describe('determinism', () => {
   it('produces identical states from identical action lists', () => {
     const build = () =>
