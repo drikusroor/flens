@@ -12,9 +12,11 @@ single-player against bots.
 Single-player also builds to a **fully static site** with no server at all — that
 is what gets published to GitHub Pages.
 
-A Discord Activity is implemented but **not yet verified**: it needs a registered
-Discord application and HTTPS hosting to run at all. See
-[`docs/discord.md`](docs/discord.md).
+A Discord Activity is implemented and deployable — one container serves the
+client, the socket and the OAuth token exchange, so Discord needs a single URL
+mapping. It is **not yet verified**, because that can only happen against a
+registered Discord application. [`docs/discord.md`](docs/discord.md) is the
+runbook: deploy, then six manual steps in the Developer Portal.
 
 ```bash
 npm install
@@ -26,6 +28,14 @@ npm run dev --workspace @flens/web      # http://localhost:5173
 
 Open the site, pick *Play online with friends*, create a room and share the
 four-letter code. Refreshing mid-game reclaims your seat.
+
+For a production-shaped run — one origin, client served by the server, exactly
+as it is deployed:
+
+```bash
+npm run build --workspace @flens/web
+npm run start --workspace @flens/server   # http://localhost:8787
+```
 
 - [`docs/research.md`](docs/research.md) — what the game is, where it comes from, what the
   rules actually are, and which parts are uncertain.

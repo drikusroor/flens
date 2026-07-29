@@ -8,12 +8,31 @@
 
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { randomUUID } from 'node:crypto';
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { isClientMessage, type ClientMessage, type ServerMessage } from '@flens/protocol';
 import { Room, TICK_MS } from './room.js';
 import { RoomRegistry } from './rooms.js';
+import { createStaticHandler } from './static.js';
 
 const PORT = Number(process.env.PORT ?? 8787);
+const HOST = process.env['HOST'] ?? '0.0.0.0';
+
+/**
+ * Where the built web app lives, if this process is also serving it.
+ *
+ * A Discord Activity is an iframe pointing at one origin, so serving the client
+ * from the same process as the socket collapses the whole deployment to a
+ * single host and a single URL mapping. In development the client runs under
+ * Vite instead and this directory simply does not exist, so nothing changes.
+ */
+const WEB_DIR = process.env['WEB_DIR']
+  ? resolve(process.env['WEB_DIR'])
+  : fileURLToPath(new URL('../../web/dist', import.meta.url));
+
+const serveStatic = existsSync(WEB_DIR) ? createStaticHandler(WEB_DIR) : null;
 
 interface Session {
   socket: WebSocket;
@@ -26,15 +45,25 @@ const registry = new RoomRegistry();
 const sessions = new Set<Session>();
 
 const httpServer = createServer((req, res) => {
-  // Discord serves the Activity through its own proxy, which prefixes every
+  // Discord serves the Activity through its own proxy, which may prefix every
   // request path with /.proxy — so each route has to answer on both.
-  const path = (req.url ?? '').replace(/^\/\.proxy/, '');
+  const path = (req.url ?? '').replace(/^\/\.proxy/, '') || '/';
 
-  if (path === '/health') {
+  if (path === '/health' || path.startsWith('/health?')) {
     return json(res, 200, { ok: true, rooms: registry.size });
   }
   if (path === '/api/discord/token' && req.method === 'POST') {
     return discordToken(req, res);
+  }
+
+  if (serveStatic && (req.method === 'GET' || req.method === 'HEAD')) {
+    void serveStatic(path, res).then((served) => {
+      if (!served) {
+        res.writeHead(404);
+        res.end();
+      }
+    });
+    return;
   }
 
   res.writeHead(404);
@@ -316,6 +345,7 @@ setInterval(() => {
 
 setInterval(() => registry.sweep(), 60_000);
 
-httpServer.listen(PORT, () => {
-  console.log(`flens server listening on :${PORT}`);
+httpServer.listen(PORT, HOST, () => {
+  console.log(`flens server listening on ${HOST}:${PORT}`);
+  console.log(serveStatic ? `serving the web build from ${WEB_DIR}` : 'no web build to serve');
 });

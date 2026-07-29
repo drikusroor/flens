@@ -1,0 +1,46 @@
+# Fly.io deployment. Any host that runs a container and terminates TLS works
+# just as well — Railway, Render, a VPS behind Caddy. Fly is here because it
+# gives an HTTPS hostname and WebSocket support with no configuration, which is
+# the shortest path to something Discord will load.
+#
+#   fly launch --no-deploy --copy-config
+#   fly secrets set DISCORD_CLIENT_ID=... DISCORD_CLIENT_SECRET=...
+#   fly deploy --build-arg VITE_DISCORD_CLIENT_ID=...
+#
+# See docs/discord.md for what to do in the Developer Portal.
+
+app = "flens"
+primary_region = "ams"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Rooms live in memory, so stopping the machine ends every game in progress.
+  # One always-on machine keeps that from happening between hands.
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  # Rooms are in-process. A second machine would mean two players launching the
+  # same Activity landing on different servers and never seeing each other.
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 200
+    soft_limit = 150
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    timeout = "5s"
+    path = "/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

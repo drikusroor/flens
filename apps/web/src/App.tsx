@@ -30,9 +30,24 @@ const OFFLINE_ONLY = ['true', '1'].includes(
  */
 const DISCORD_WS_PATH = (import.meta.env['VITE_DISCORD_WS_PATH'] as string | undefined) ?? '/.proxy/ws';
 
+/** `ws://` or `wss://` on this page's own host, matching the page's scheme. */
+function sameOrigin(path: string): string {
+  return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${path}`;
+}
+
+/**
+ * Where the socket lives.
+ *
+ * In production the server serves this bundle too, so same-origin `/ws` is
+ * right and needs no configuration — which is also what makes the Discord URL
+ * mapping a single entry. `VITE_FLENS_SERVER` overrides it for split
+ * deployments, and development defaults to the local server on its own port
+ * because Vite is serving the page.
+ */
 const SERVER_URL = isRunningInDiscord()
-  ? `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${DISCORD_WS_PATH}`
-  : (import.meta.env['VITE_FLENS_SERVER'] ?? 'ws://localhost:8787');
+  ? sameOrigin(DISCORD_WS_PATH)
+  : ((import.meta.env['VITE_FLENS_SERVER'] as string | undefined) ??
+    (import.meta.env.DEV ? 'ws://localhost:8787' : sameOrigin('/ws')));
 
 type Mode =
   | { kind: 'menu' }
