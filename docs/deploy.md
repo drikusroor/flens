@@ -17,20 +17,29 @@ Two environment variables shape the build:
 | `VITE_BASE_PATH` | Project sites live at `/<repo>/`, not at the root, so assets must resolve there. Set automatically from the repository name. |
 | `VITE_OFFLINE_ONLY` | Hides everything that needs a server: the online lobby and the Discord path. Without it the menu would offer multiplayer that cannot connect. |
 
-## While the repository is private
+## One setting has to be flipped by hand
 
-**The deploy step will fail.** GitHub Pages on a private repository requires a
-paid plan; on a free account, Pages sites must be public. The build job still
-runs and still catches breakage, so a red deploy is expected and is not a sign
-that anything is broken.
+**Settings → Pages → Source: GitHub Actions.**
 
-Once the repository is public:
+This is the only manual step, and it cannot be automated from the workflow.
+`actions/configure-pages` has an `enablement: true` input that looks like it
+would do it, but creating a Pages site requires repository-administration
+rights, and `administration` is not among the scopes a workflow's `GITHUB_TOKEN`
+can be granted. Without the setting the run fails at `configure-pages` with:
 
-1. **Settings → Pages → Source: GitHub Actions.**
-2. Re-run the workflow (Actions → *Deploy single-player to GitHub Pages* → *Run
-   workflow*), or push to `main`.
+```
+Create Pages site failed. Error: Resource not accessible by integration
+```
 
-The site lands at `https://<user>.github.io/<repo>/`.
+Everything before that step — tests, typecheck, build — still runs, so a failure
+here means the site is not switched on, not that the code is broken.
+
+Once it is set, re-run the workflow (Actions → *Deploy single-player to GitHub
+Pages* → *Run workflow*) or push to `main`. The site lands at
+`https://<user>.github.io/<repo>/`.
+
+Note that Pages on a **private** repository needs a paid plan; on a free account
+the repository has to be public.
 
 ## Building it locally
 

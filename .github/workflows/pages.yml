@@ -44,11 +44,11 @@ jobs:
           VITE_OFFLINE_ONLY: 'true'
         run: npm run build --workspace @flens/web
 
-      # `enablement` turns Pages on if it is not already, so the first run does
-      # not need anyone to visit the settings page first.
+      # Pages itself must already be switched on (Settings → Pages → Source:
+      # GitHub Actions). `enablement: true` cannot do it for us: creating a
+      # Pages site needs repository-administration rights, and `administration`
+      # is not among the scopes a workflow's GITHUB_TOKEN can be granted.
       - uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
