@@ -5,7 +5,7 @@ export function Opponents({ view, seat }: { view: GameView; seat: number }) {
   const others = view.players.filter((p) => p.id !== seat);
 
   return (
-    <section className="opponents">
+    <section className="opponents" data-zone="opponents">
       {others.map((player) => (
         <div
           key={player.id}

@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { reduce } from './reduce.js';
-import { scenario, values } from './testing.js';
+import { scenario, values } from './scenario.js';
 import type { Action, GameState } from './types.js';
 
 const hand = (index: number) => ({ kind: 'hand', index }) as const;

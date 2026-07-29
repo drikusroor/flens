@@ -43,9 +43,15 @@ four-letter code. Refreshing mid-game reclaims your seat.
 | [`packages/bot`](packages/bot) | Opponent policy. Difficulty is error rate and reaction time, not search depth. |
 | [`packages/protocol`](packages/protocol) | Wire types shared by client and server, so they cannot drift. |
 | [`apps/server`](apps/server) | Authoritative WebSocket server. Rooms, seats, bots, reconnects. |
-| [`apps/web`](apps/web) | React client. Same table for local, online and Discord play. |
+| [`apps/web`](apps/web) | React client. Same table for local, online, tutorial and Discord play. |
 
 ## How it plays
+
+**Never played it?** *Learn to play* on the menu is a nine-hand tutorial, about five
+minutes, one click each. It is the real game throughout — real engine, real table, real
+rules — with the deal fixed and a coach on top, so everything you learn in it transfers
+directly. One lesson deliberately lets you make the most common mistake in the game and
+has the opponent catch you for it.
 
 Click a card (hand, flensstok top, or one of your open piles), then click a centre
 pile to play it there. Click one of your own open piles with a hand card selected to

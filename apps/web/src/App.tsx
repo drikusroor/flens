@@ -8,6 +8,7 @@ import { DiscordTable } from './components/DiscordTable';
 import { Lobby } from './components/Lobby';
 import { Setup, type SetupChoices } from './components/Setup';
 import { Table } from './components/Table';
+import { Tutorial } from './tutorial/Tutorial';
 
 const DISCORD_CLIENT_ID = import.meta.env['VITE_DISCORD_CLIENT_ID'] as string | undefined;
 
@@ -33,7 +34,20 @@ const SERVER_URL = isRunningInDiscord()
   ? `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${DISCORD_WS_PATH}`
   : (import.meta.env['VITE_FLENS_SERVER'] ?? 'ws://localhost:8787');
 
-type Mode = { kind: 'menu' } | { kind: 'local'; choices: SetupChoices } | { kind: 'online' };
+type Mode =
+  | { kind: 'menu' }
+  | { kind: 'local'; choices: SetupChoices }
+  | { kind: 'online' }
+  | { kind: 'tutorial' };
+
+/** What "Play against bots" off the back of the tutorial deals. */
+const AFTER_TUTORIAL: SetupChoices = {
+  opponents: 2,
+  difficulty: 'normal',
+  topValue: 16,
+  hints: false,
+  seed: 0,
+};
 
 export function App() {
   // A refresh mid-game should land back at the table, not at the menu.
@@ -48,6 +62,7 @@ export function App() {
       return (
         <Setup
           onStart={(choices) => setMode({ kind: 'local', choices })}
+          onLearn={() => setMode({ kind: 'tutorial' })}
           {...(OFFLINE_ONLY ? {} : { onOnline: () => setMode({ kind: 'online' }) })}
         />
       );
@@ -55,6 +70,18 @@ export function App() {
       return <LocalTable choices={mode.choices} onQuit={() => setMode({ kind: 'menu' })} />;
     case 'online':
       return <OnlineTable onQuit={() => setMode({ kind: 'menu' })} />;
+    case 'tutorial':
+      return (
+        <Tutorial
+          onQuit={() => setMode({ kind: 'menu' })}
+          onPlay={() =>
+            setMode({
+              kind: 'local',
+              choices: { ...AFTER_TUTORIAL, seed: Math.floor(Math.random() * 1e9) },
+            })
+          }
+        />
+      );
   }
 }
 

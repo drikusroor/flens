@@ -11,11 +11,12 @@ export interface SetupChoices {
 
 interface SetupProps {
   onStart: (choices: SetupChoices) => void;
+  onLearn: () => void;
   /** Omitted in offline-only builds, where there is no server to reach. */
   onOnline?: (() => void) | undefined;
 }
 
-export function Setup({ onStart, onOnline }: SetupProps) {
+export function Setup({ onStart, onLearn, onOnline }: SetupProps) {
   const [opponents, setOpponents] = useState(2);
   const [difficulty, setDifficulty] = useState<Difficulty>('normal');
   const [topValue, setTopValue] = useState(16);
@@ -84,6 +85,10 @@ export function Setup({ onStart, onOnline }: SetupProps) {
           Play online with friends
         </button>
       )}
+
+      <button type="button" className="btn" onClick={onLearn}>
+        Learn to play &mdash; nine hands, about five minutes
+      </button>
     </div>
   );
 }

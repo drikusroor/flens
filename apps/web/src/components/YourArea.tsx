@@ -37,7 +37,7 @@ export function YourArea({
       </h2>
 
       <div className="you__row">
-        <div className="you__group">
+        <div className="you__group" data-zone="flensstok">
           <span className="you__label">Flensstok ({you.flensstokCount})</span>
           <Card
             card={you.flensstokTop}
@@ -52,7 +52,7 @@ export function YourArea({
           />
         </div>
 
-        <div className="you__group">
+        <div className="you__group" data-zone="openPiles">
           <span className="you__label">Open piles — click one to discard</span>
           <div className="you__piles">
             {you.openPiles.map((pile, index) => (
@@ -69,7 +69,7 @@ export function YourArea({
         </div>
       </div>
 
-      <div className="you__group">
+      <div className="you__group" data-zone="hand">
         <span className="you__label">Hand</span>
         <div className="you__hand">
           {(you.hand ?? []).map((card, index) => (

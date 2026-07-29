@@ -16,7 +16,7 @@ export function FlensBanner({ game, onCall }: { game: TableController; onCall: (
     : 0;
 
   return (
-    <div className={`flens ${live ? 'flens--live' : 'flens--idle'}`}>
+    <div className={`flens ${live ? 'flens--live' : 'flens--idle'}`} data-zone="flens">
       <button
         type="button"
         className={`btn btn--flens ${live ? 'btn--armed' : ''}`}

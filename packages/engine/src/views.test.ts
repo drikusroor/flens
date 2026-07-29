@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { reduce } from './reduce.js';
-import { scenario } from './testing.js';
+import { scenario } from './scenario.js';
 import { viewFor } from './views.js';
 import type { GameState } from './types.js';
 

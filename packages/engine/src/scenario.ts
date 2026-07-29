@@ -1,8 +1,10 @@
 /**
- * Scenario builder for tests.
+ * Builds an exact table from plain numbers.
  *
- * Real deals are shuffled, which is useless for asserting on specific rules.
- * `scenario` builds an exact table from plain numbers instead.
+ * Real deals are shuffled, which is useless when you need a specific position:
+ * tests assert on one rule at a time, and the tutorial has to put the right card
+ * in the right place for the lesson it is teaching. Both want the same thing —
+ * a table stated outright rather than dealt.
  */
 
 import { makeConfig } from './config.js';

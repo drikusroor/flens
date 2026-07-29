@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { reduce, reduceAll } from './reduce.js';
-import { scenario, values } from './testing.js';
+import { scenario, values } from './scenario.js';
 import type { Action, CardSource, GameState } from './types.js';
 
 const play = (player: number, from: CardSource, to: number): Action => ({

@@ -9,7 +9,9 @@ interface CentreProps {
 
 export function Centre({ view, armed, onPick }: CentreProps) {
   return (
-    <section className="centre">
+    // `data-zone` lets the tutorial ring the part of the table it is talking
+    // about without knowing anything about this component's markup.
+    <section className="centre" data-zone="centre">
       <h2 className="section-title">Centre</h2>
       <div className="centre__piles">
         {view.centre.map((pile, index) => {

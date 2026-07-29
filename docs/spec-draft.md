@@ -142,8 +142,12 @@ A bot that never errs and always Flenses instantly is miserable to play against.
    turned out *not* to want a separate `apps/discord`: an Activity is this same web app
    in an iframe, so `apps/web` detects the context instead. A second app would have
    meant a second copy of everything for no gain.
-6. **Static single-player build** for GitHub Pages — see `docs/deploy.md`. Free, needs
-   no hosting, and is the easiest thing to hand someone who just wants to try it.
+6. ~~**Static single-player build** for GitHub Pages~~ **Done** — see `docs/deploy.md`.
+   Free, needs no hosting, and is the easiest thing to hand someone who just wants to
+   try it.
+7. ~~**Interactive tutorial.**~~ **Done** — see §7. Not originally on this list; it
+   became obvious once the game was playable that nobody outside the one family that
+   still plays it can be handed a Flens table cold.
 
 Rationale for not starting with Discord: an Activity needs an app registration, only runs
 inside a voice channel, and is fiddly to iterate on and to test with real people. It's a
@@ -236,3 +240,35 @@ table and the game simply froze on their turn — bots only move when it is thei
 one idle player halts everything. It is now enforced on `tick`: a timed-out player is
 discarded for (and still commits the usual `missedCentrePlay` infraction if a play was
 available), or the table plays for them when their hand is empty.
+
+---
+
+## 7. The tutorial
+
+Nine hands in `apps/web/src/tutorial/lessons.ts`, one click each: start a pile at 1, play
+from the flensstok, the flensstok-before-hand rule, ending a turn, *voorrang*, catching an
+out-of-sequence card with the countdown visible, catching a missed play without it,
+Pankouk, and winning.
+
+Three decisions worth recording.
+
+**The tutorial plays the real game.** Each lesson is a position built with `scenario`,
+reduced by the real engine and rendered by the real `Table` behind an ordinary
+`TableController`. There is no second implementation of the rules, no scripted animation
+of a hand being played, and nothing that can drift out of step with the game — a rule
+change that breaks a lesson breaks it in `npm test`, not in front of a beginner.
+
+**The gate answers before the engine does.** A misclick is refused with a sentence rather
+than committed, because the alternative is a beginner silently committing an infraction
+for a rule they have not been taught yet. The refusals *are* the teaching: clicking the
+hand 7 when a 7 sits on your flensstok is how most people will first meet
+`flensstokPriority`.
+
+**One lesson lets the mistake land.** `voorrang` — the rule that ending a turn with a play
+available is callable — permits the discard the lesson warns against, and the opponent
+calls FLENS! on it. Their open pile ends up buried under yours and the lesson restarts.
+Being told that rule and being caught by it are not the same lesson, and it is the most
+common call in real play.
+
+The countdown bar appears in exactly one lesson, and the next lesson says so and removes
+it. Anything else would teach "press when the bar shows up", which is not the game (§6).

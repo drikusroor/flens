@@ -556,6 +556,139 @@ button:disabled {
   letter-spacing: 0.14em;
 }
 
+/* --- tutorial ------------------------------------------------------------- */
+
+.coach {
+  position: sticky;
+  top: 0;
+  z-index: 25;
+  max-width: 68rem;
+  margin: 0 auto;
+  background: #21382a;
+  border: 1px solid var(--accent);
+  border-radius: 0 0 var(--radius) var(--radius);
+  border-top: none;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.coach__progress {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.coach__step {
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.coach__dots {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.coach__dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 99px;
+  background: var(--felt-edge);
+}
+
+.coach__dot--past {
+  background: #4f7d61;
+}
+
+.coach__dot--now {
+  background: var(--accent);
+  transform: scale(1.3);
+}
+
+.coach__title {
+  margin: 0;
+  font-size: 1.25rem;
+  letter-spacing: -0.01em;
+}
+
+.coach__body {
+  margin: 0;
+  line-height: 1.6;
+  color: #d8e2da;
+  max-width: 58ch;
+}
+
+.coach__task {
+  margin: 0;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.coach__list {
+  margin: 0;
+  padding-left: 1.1rem;
+  line-height: 1.6;
+  color: #d8e2da;
+  max-width: 58ch;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+/* Reserve the line whether or not there is anything in it, so the table below
+   does not jump every time the coach speaks. */
+.coach__line {
+  margin: 0;
+  min-height: 1.4em;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: #f0a58f;
+}
+
+.coach__actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.coach--done {
+  border-color: #4f7d61;
+}
+
+.coach--done .coach__body {
+  color: var(--ink);
+}
+
+.coach--punished {
+  border-color: var(--flens);
+  background: #34211c;
+}
+
+/* Ring the part of the table the lesson is talking about. Only the wrapper
+   knows about lessons; the table components just carry a `data-zone`.
+
+   Ringing, and *not* dimming everything else: the two hardest lessons are about
+   reading the whole table at once, and greying out the cards you are supposed to
+   be comparing would teach the opposite of the skill. */
+.tutorial [data-zone] {
+  transition: box-shadow 220ms ease;
+}
+
+.tutorial[data-focus='centre'] [data-zone='centre'],
+.tutorial[data-focus='flensstok'] [data-zone='flensstok'],
+.tutorial[data-focus='openPiles'] [data-zone='openPiles'],
+.tutorial[data-focus='hand'] [data-zone='hand'],
+.tutorial[data-focus='flens'] [data-zone='flens'],
+.tutorial[data-focus='opponents'] [data-zone='opponents'] {
+  border-radius: var(--radius);
+  box-shadow: 0 0 0 2px var(--accent), 0 0 22px -8px var(--accent);
+}
+
 /* --- motion --------------------------------------------------------------- */
 
 /* Cards are transformed by the FLIP layer, so they must not also be laid out
@@ -618,6 +751,9 @@ button:disabled {
     animation: none;
   }
   .card {
+    transition: none;
+  }
+  .tutorial [data-zone] {
     transition: none;
   }
 }

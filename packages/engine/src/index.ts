@@ -14,3 +14,4 @@ export {
 } from './legality.js';
 export { viewFor, type GameView, type PublicPlayerView, type ViewOptions } from './views.js';
 export { nextRandom, shuffle } from './rng.js';
+export { scenario, values, type PlayerSpec, type ScenarioSpec } from './scenario.js';
