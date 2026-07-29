@@ -555,3 +555,69 @@ button:disabled {
   text-transform: uppercase;
   letter-spacing: 0.14em;
 }
+
+/* --- motion --------------------------------------------------------------- */
+
+/* Cards are transformed by the FLIP layer, so they must not also be laid out
+   with transitions that would fight it. Keep transitions to colour only. */
+.card {
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+  will-change: transform;
+}
+
+.card--playable:not(:disabled):hover {
+  transition: transform 90ms ease, border-color 120ms ease;
+}
+
+/* A FLENS! call should feel like someone shouting across the table. */
+.table--flens {
+  animation: jolt 420ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+.table--flens::after,
+.table--pankouk::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 30;
+  animation: flash 550ms ease-out forwards;
+}
+
+.table--flens::after {
+  background: radial-gradient(circle at 50% 35%, rgba(212, 72, 47, 0.35), transparent 60%);
+}
+
+.table--pankouk::after {
+  background: radial-gradient(circle at 50% 40%, rgba(232, 176, 75, 0.32), transparent 60%);
+}
+
+@keyframes jolt {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-7px) rotate(-0.25deg); }
+  35% { transform: translateX(6px) rotate(0.2deg); }
+  55% { transform: translateX(-4px); }
+  75% { transform: translateX(3px); }
+}
+
+@keyframes flash {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* The centre is where the run builds — give it a beat when it grows. */
+.centre__pile .card:not(.card--empty) {
+  box-shadow: 0 2px 0 #c9c0aa, 0 0 18px -6px var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .table--flens,
+  .table--flens::after,
+  .table--pankouk::after,
+  .btn--armed {
+    animation: none;
+  }
+  .card {
+    transition: none;
+  }
+}

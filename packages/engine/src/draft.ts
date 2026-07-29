@@ -1,6 +1,6 @@
 /** Mutable working copy of `GameState`, used inside `reduce` and discarded after. */
 
-import type { Card, GameState, Infraction, LogEntry } from './types.js';
+import type { Card, GameState, Infraction, LogEntry, LogKind } from './types.js';
 
 export interface DraftPlayer {
   id: number;
@@ -80,6 +80,11 @@ export function fromDraft(draft: Draft): GameState {
   };
 }
 
-export function note(draft: Draft, message: string, secret = false): void {
-  draft.log.push(secret ? { at: draft.now, message, secret } : { at: draft.now, message });
+export function note(draft: Draft, message: string, kind?: LogKind, secret = false): void {
+  const entry: LogEntry = { at: draft.now, message };
+  draft.log.push({
+    ...entry,
+    ...(kind ? { kind } : {}),
+    ...(secret ? { secret: true } : {}),
+  });
 }

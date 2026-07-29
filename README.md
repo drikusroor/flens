@@ -54,3 +54,18 @@ discard and end your turn.
 The **FLENS!** button is always live and nothing tells you when to press it — spotting
 the mistake is the game. A wrong call costs you two cards. Turn on *"show me the
 mistakes"* in setup if you want the countdown while learning.
+
+## Sound and motion
+
+Sound effects are **synthesised at runtime** with the Web Audio API — no audio files,
+nothing to download, nothing to license. The **"Flens!"** outcry uses the browser's
+built-in speech synthesis, preferring a Dutch voice; where the platform has no voices
+the accompanying stab still lands. There is a mute toggle in the header, and it
+persists.
+
+Cards physically travel between hand, piles and centre via a FLIP layer keyed on card
+identity, so a bot's move animates exactly like your own. All of it honours
+`prefers-reduced-motion`.
+
+Sound is driven off the redacted view, which is what makes it safe: infraction log
+entries never reach a client, so nothing can chirp when someone errs.

@@ -103,6 +103,23 @@ describe('infractions are withheld by default', () => {
     expect(view.centre[0]!.cards.at(-1)?.value).toBe(9);
   });
 
+  it('never exposes a secret log kind, which a UI could turn into a sound', () => {
+    // The client keys sound and animation off `kind`. If an infraction kind
+    // reached an ordinary view, the game would announce the very mistake the
+    // player is supposed to spot for themselves.
+    const view = viewFor(afterBadPlay(), 1);
+    const kinds = view.log.map((e) => e.kind);
+
+    expect(kinds).not.toContain('infraction');
+    expect(kinds).not.toContain('gotAway');
+  });
+
+  it('tags entries with a kind so a UI need not parse messages', () => {
+    const view = viewFor(afterBadPlay(), 1);
+    // The out-of-sequence card still looks like an ordinary play from outside.
+    expect(view.log.some((e) => e.kind === 'play')).toBe(true);
+  });
+
   it('reveals everything when explicitly asked', () => {
     const view = viewFor(afterBadPlay(), 1, { revealInfractions: true });
 

@@ -22,7 +22,14 @@ export function Card({ card, depth = 0, selected, playable, label, onClick }: Ca
     .join(' ');
 
   return (
-    <button type="button" className={classes} onClick={onClick} disabled={!onClick}>
+    <button
+      type="button"
+      className={classes}
+      onClick={onClick}
+      disabled={!onClick}
+      // Lets the FLIP layer follow this exact card as it moves between places.
+      data-card-id={card ? String(card.id) : undefined}
+    >
       <span className="card__value">{card ? card.value : ''}</span>
       {depth > 1 && <span className="card__depth">{depth}</span>}
       {label && <span className="card__label">{label}</span>}

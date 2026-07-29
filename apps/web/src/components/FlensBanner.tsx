@@ -8,7 +8,7 @@ import type { TableController } from '../game/controller';
  * appears — handy for learning, but it turns the game into "press when the bar
  * shows up", which is not the game.
  */
-export function FlensBanner({ game }: { game: TableController }) {
+export function FlensBanner({ game, onCall }: { game: TableController; onCall: () => void }) {
   const { view, hints, infractionVisible, flensTarget } = game;
   const live = hints && infractionVisible;
   const pct = live
@@ -20,7 +20,7 @@ export function FlensBanner({ game }: { game: TableController }) {
       <button
         type="button"
         className={`btn btn--flens ${live ? 'btn--armed' : ''}`}
-        onClick={game.callFlens}
+        onClick={onCall}
         disabled={view.phase !== 'playing'}
       >
         FLENS!

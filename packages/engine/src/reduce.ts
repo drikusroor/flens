@@ -77,7 +77,7 @@ function handlePlay(
 
   removeFrom(dp, action.from);
   target.cards.push(card);
-  note(draft, `${dp.name} played ${card.value} to centre pile ${action.to.index}`);
+  note(draft, `${dp.name} played ${card.value} to centre pile ${action.to.index}`, 'play');
 
   if (!legal) {
     openInfraction(draft, {
@@ -133,7 +133,7 @@ function handleDiscard(
   const dp = draft.players[action.player]!;
   const card = dp.hand.splice(action.handIndex, 1)[0]!;
   dp.openPiles[action.openPileIndex]!.push(card);
-  note(draft, `${dp.name} discarded ${card.value} to open pile ${action.openPileIndex}`);
+  note(draft, `${dp.name} discarded ${card.value} to open pile ${action.openPileIndex}`, 'discard');
 
   if (missed) {
     openInfraction(draft, {
@@ -178,7 +178,7 @@ function handleCallFlens(
     // Wrong call. Without a cost, everyone would just mash the button.
     const penalty = drawCards(draft, draft.config.falseCallPenalty);
     dc.flensstok.push(...penalty);
-    note(draft, `${dc.name} called FLENS! wrongly and takes ${penalty.length} cards`);
+    note(draft, `${dc.name} called FLENS! wrongly and takes ${penalty.length} cards`, 'falseCall');
     return accept(draft);
   }
 
@@ -209,7 +209,7 @@ function handleCallFlens(
       `${dc.name} called FLENS! on ${offender.name} (${infraction.detail}) and hands over ${given.length} cards`,
     );
   } else {
-    note(draft, `${dc.name} called FLENS! on ${offender.name} (${infraction.detail})`);
+    note(draft, `${dc.name} called FLENS! on ${offender.name} (${infraction.detail})`, 'flens');
   }
 
   draft.pendingInfraction = null;
@@ -242,12 +242,12 @@ function handlePass(state: GameState, action: Extract<Action, { type: 'pass' }>)
   }
 
   const draft = toDraft(state);
-  note(draft, `${player.name} cannot move and passes`);
+  note(draft, `${player.name} cannot move and passes`, 'pass');
   draft.consecutivePasses += 1;
 
   if (draft.consecutivePasses >= draft.players.length) {
     draft.phase = 'stalemate';
-    note(draft, 'nobody can move — the game is a draw');
+    note(draft, 'nobody can move — the game is a draw', 'draw');
     return accept(draft);
   }
 
@@ -292,7 +292,7 @@ function enforceTurnTimeout(draft: Draft): void {
     const plays = availableCentrePlays(fromDraft(draft), draft.currentPlayer);
     const play = plays[0];
     if (play) {
-      note(draft, `${player.name} ran out of time; the table plays ${play.card.value} for them`);
+      note(draft, `${player.name} ran out of time; the table plays ${play.card.value} for them`, 'timeout');
       removeFrom(player, play.from);
       draft.centre[play.centreIndex]!.cards.push(play.card);
       draft.idleTurns = 0;
@@ -303,11 +303,11 @@ function enforceTurnTimeout(draft: Draft): void {
       return;
     }
 
-    note(draft, `${player.name} ran out of time and passes`);
+    note(draft, `${player.name} ran out of time and passes`, 'timeout');
     draft.consecutivePasses += 1;
     if (draft.consecutivePasses >= draft.players.length) {
       draft.phase = 'stalemate';
-      note(draft, 'nobody can move — the game is a draw');
+      note(draft, 'nobody can move — the game is a draw', 'draw');
       return;
     }
     draft.idleTurns += 1;
@@ -325,7 +325,7 @@ function enforceTurnTimeout(draft: Draft): void {
   });
   const card = player.hand.splice(0, 1)[0]!;
   player.openPiles[target]!.push(card);
-  note(draft, `${player.name} ran out of time and discards ${card.value}`);
+  note(draft, `${player.name} ran out of time and discards ${card.value}`, 'timeout');
   draft.consecutivePasses = 0;
 
   if (missed) {
@@ -372,6 +372,7 @@ function openInfraction(draft: Draft, infraction: Infraction): void {
   note(
     draft,
     `infraction by ${draft.players[infraction.offender]!.name}: ${infraction.detail}`,
+    'infraction',
     true,
   );
 }
@@ -387,7 +388,7 @@ function settleExpiredInfraction(draft: Draft): void {
 /** Nobody called in time. Either the error stands, or we quietly undo it. */
 function settleInfraction(draft: Draft, infraction: Infraction): void {
   if (draft.config.uncaughtErrorsStand) {
-    note(draft, `${draft.players[infraction.offender]!.name} got away with it`, true);
+    note(draft, `${draft.players[infraction.offender]!.name} got away with it`, 'gotAway', true);
     return;
   }
   if (infraction.kind === 'outOfSequence' && infraction.revert) {
@@ -396,7 +397,7 @@ function settleInfraction(draft: Draft, infraction: Infraction): void {
     if (pile && top && top.id === infraction.revert.card.id) {
       pile.cards.pop();
       draft.players[infraction.offender]!.hand.push(top);
-      note(draft, `uncaught error reverted (${infraction.detail})`, true);
+      note(draft, `uncaught error reverted (${infraction.detail})`, 'gotAway', true);
     }
   }
 }
@@ -406,7 +407,7 @@ function clearCompletedRuns(draft: Draft): void {
     if (!isCompleteRun(pile, draft.config)) return;
     draft.completed.push(...pile.cards);
     draft.centre[index] = { cards: [] };
-    note(draft, `centre pile ${index} completed — Pankouk!`);
+    note(draft, `centre pile ${index} completed — Pankouk!`, 'pankouk');
   });
 }
 
@@ -446,7 +447,7 @@ function replenish(draft: Draft): boolean {
     draft.voorraad = items;
     draft.completed = [];
     draft.rng = rng;
-    note(draft, 'reshuffled completed runs back into the supply');
+    note(draft, 'reshuffled completed runs back into the supply', 'recycle');
     return true;
   }
 
@@ -467,7 +468,7 @@ function replenish(draft: Draft): boolean {
   const { items, rng } = shuffle(buried, draft.rng);
   draft.voorraad = items;
   draft.rng = rng;
-  note(draft, `recycled ${buried.length} buried cards back into the supply`);
+  note(draft, `recycled ${buried.length} buried cards back into the supply`, 'recycle');
   return true;
 }
 
@@ -485,7 +486,7 @@ function advanceTurn(draft: Draft): void {
 function checkStalemate(draft: Draft): boolean {
   if (draft.idleTurns < draft.config.idleTurnsBeforeStalemate) return false;
   draft.phase = 'stalemate';
-  note(draft, `no centre play in ${draft.idleTurns} turns — the game is a draw`);
+  note(draft, `no centre play in ${draft.idleTurns} turns — the game is a draw`, 'draw');
   return true;
 }
 
@@ -503,7 +504,7 @@ function checkWin(draft: Draft, playerId: number): void {
   if (!won) return;
   draft.phase = 'finished';
   draft.winner = playerId;
-  note(draft, `${player.name} wins`);
+  note(draft, `${player.name} wins`, 'win');
 }
 
 function largestOpenPile(piles: readonly Card[][]): number | null {

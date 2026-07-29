@@ -183,9 +183,31 @@ export interface GameState {
   readonly log: readonly LogEntry[];
 }
 
+/**
+ * What happened, independent of how it is worded. A UI can key sound, icons or
+ * animation off this without breaking every time a message is reworded.
+ */
+export type LogKind =
+  | 'start'
+  | 'play'
+  | 'discard'
+  | 'pass'
+  | 'timeout'
+  | 'flens'
+  | 'falseCall'
+  | 'pankouk'
+  | 'recycle'
+  | 'win'
+  | 'draw'
+  /** Secret: never reaches an ordinary view. */
+  | 'infraction'
+  /** Secret: an infraction nobody caught. */
+  | 'gotAway';
+
 export interface LogEntry {
   readonly at: number;
   readonly message: string;
+  readonly kind?: LogKind;
   /**
    * Entries that would give away an unresolved mistake. Noticing an infraction
    * is the player's job, so these are withheld from views by default — a client
