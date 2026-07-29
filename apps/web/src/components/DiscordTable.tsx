@@ -1,9 +1,39 @@
 import { useEffect, useRef } from 'react';
 import type { BotDifficulty } from '@flens/protocol';
 import type { TableController } from '../game/controller';
-import type { DiscordSession } from '../discord/useDiscord';
+import type { DiscordSession, HandshakeStage } from '../discord/useDiscord';
 import type { OnlineGame } from '../net/useOnlineGame';
 import { Table } from './Table';
+
+/**
+ * What to go and check, per failing step.
+ *
+ * The Activity runs inside an iframe most people will never open devtools on,
+ * so the screen has to carry the diagnosis. Each of these points at a different
+ * place — the build, the Developer Portal, the server — because each stage can
+ * only fail for its own reasons. See `docs/discord.md`.
+ */
+const REMEDY: Record<HandshakeStage | 'unknown', string> = {
+  'loading the Discord SDK':
+    'The SDK bundle did not load. The URL mapping for `/` is the first suspect — assets are ' +
+    'being served from somewhere other than the deployed build.',
+  'handshaking with the Discord client':
+    'Discord itself never answered. This usually means the Activity was opened outside a ' +
+    'voice channel, or the app is not installed in this server.',
+  'asking Discord to authorise this app':
+    'Discord refused to authorise the app. Check that the client id in this build is the ' +
+    'same application you configured, that Activities are enabled for it, and that it is ' +
+    'installed to this server.',
+  'exchanging the code for a token on the server':
+    'The server could not trade the code for a token. Either DISCORD_CLIENT_SECRET is ' +
+    'missing or stale, or it belongs to a different application than the client id.',
+  'signing in with the token':
+    'Discord issued a token but then rejected it. That points at a client id and client ' +
+    'secret coming from two different applications.',
+  unknown:
+    'Check that the client id matches the application and that the server has its client ' +
+    'secret.',
+};
 
 /**
  * Inside Discord there is no menu and no room code: everyone who launched the
@@ -34,10 +64,7 @@ export function DiscordTable({
       <div className="setup">
         <h1>Flens</h1>
         <p className="rejection">{discord.error}</p>
-        <p className="setup__blurb">
-          The Activity could not finish signing in with Discord. Check that the client id
-          matches the application and that the server has its client secret.
-        </p>
+        <p className="setup__blurb">{REMEDY[discord.stage ?? 'unknown']}</p>
       </div>
     );
   }
