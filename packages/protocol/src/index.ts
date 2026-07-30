@@ -9,9 +9,13 @@
  *  - Clients receive a redacted `GameView`, never a `GameState`. Hidden cards
  *    and unresolved infractions must not travel over the wire at all — anything
  *    sent is readable in a browser's network tab.
+ *  - Nothing on the wire is in a language. Anything the server has to say is a
+ *    `Message`, rendered by each client in whatever language its player picked,
+ *    so one room can be read in three at once.
  */
 
-import type { Action, FlensConfig, GameView } from '@flens/engine';
+import type { Action, FlensConfig, GameView, RejectionReason } from '@flens/engine';
+import type { Keys, Message } from '@flens/i18n';
 
 export const PROTOCOL_VERSION = 1;
 
@@ -20,6 +24,12 @@ export const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const CODE_LENGTH = 4;
 
 export type BotDifficulty = 'easy' | 'normal' | 'hard';
+
+/**
+ * Why the server said no. Either its own objection or a rejection forwarded
+ * straight from the engine, and in both cases a key rather than a sentence.
+ */
+export type ErrorReason = Keys<'error.'> | RejectionReason;
 
 export interface SeatInfo {
   readonly seat: number;
@@ -84,7 +94,7 @@ export type ServerMessage =
    * ticks.
    */
   | { readonly type: 'state'; readonly view: GameView; readonly serverNow: number }
-  | { readonly type: 'error'; readonly message: string };
+  | { readonly type: 'error'; readonly error: Message<ErrorReason> };
 
 export function isClientMessage(value: unknown): value is ClientMessage {
   return typeof value === 'object' && value !== null && typeof (value as { type?: unknown }).type === 'string';

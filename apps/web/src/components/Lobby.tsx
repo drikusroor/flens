@@ -1,22 +1,28 @@
 import { useState } from 'react';
-import type { BotDifficulty } from '@flens/protocol';
+import type { Message } from '@flens/i18n';
+import type { BotDifficulty, ErrorReason } from '@flens/protocol';
+import { LanguagePicker, T, useT } from '../i18n/locale';
 import type { OnlineGame } from '../net/useOnlineGame';
 
+/** Bot difficulties, as keys — the wire values are not words. */
+const DIFFICULTIES: readonly BotDifficulty[] = ['easy', 'normal', 'hard'];
+const difficultyKey = (difficulty: BotDifficulty) => `difficulty.${difficulty}` as const;
+
 export function Lobby({ game, onBack }: { game: OnlineGame; onBack: () => void }) {
+  const { t } = useT();
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [topValue, setTopValue] = useState(16);
 
   if (game.status === 'connecting') {
-    return <Shell title="Connecting…" onBack={onBack} error={game.error} />;
+    return <Shell title={t('lobby.connecting')} onBack={onBack} error={game.error} />;
   }
 
   if (game.status === 'closed') {
     return (
-      <Shell title="Disconnected" onBack={onBack} error={game.error}>
+      <Shell title={t('lobby.disconnected')} onBack={onBack} error={game.error}>
         <p className="setup__blurb">
-          Lost the connection to the server. Is it running? Try{' '}
-          <code>npm run dev --workspace @flens/server</code>, then reload.
+          <T k="lobby.disconnected.body" />
         </p>
       </Shell>
     );
@@ -28,9 +34,14 @@ export function Lobby({ game, onBack }: { game: OnlineGame; onBack: () => void }
     const canStart = isHost && game.lobby.seats.length >= 2;
 
     return (
-      <Shell title={`Room ${game.lobby.code}`} onBack={game.leave} backLabel="Leave" error={game.error}>
+      <Shell
+        title={t('lobby.room', { code: game.lobby.code })}
+        onBack={game.leave}
+        backLabel={t('lobby.leave')}
+        error={game.error}
+      >
         <p className="setup__blurb">
-          Share the code <strong>{game.lobby.code}</strong> with whoever is playing.
+          <T k="lobby.share" params={{ code: game.lobby.code }} />
         </p>
 
         <ul className="lobby__seats">
@@ -38,11 +49,15 @@ export function Lobby({ game, onBack }: { game: OnlineGame; onBack: () => void }
             <li key={s.seat} className="lobby__seat">
               <span>
                 {s.name}
-                {s.seat === game.seat && <em> (you)</em>}
-                {s.seat === game.lobby!.hostSeat && <em> · host</em>}
+                {s.seat === game.seat && <em> {t('lobby.you')}</em>}
+                {s.seat === game.lobby!.hostSeat && <em> · {t('lobby.host')}</em>}
               </span>
               <span className="lobby__tag">
-                {s.kind === 'bot' ? `bot · ${s.difficulty}` : s.connected ? 'ready' : 'away'}
+                {s.kind === 'bot'
+                  ? t('lobby.botTag', { difficulty: t(difficultyKey(s.difficulty ?? 'normal')) })
+                  : s.connected
+                    ? t('lobby.ready')
+                    : t('lobby.away')}
               </span>
               {isHost && s.kind === 'bot' && (
                 <button
@@ -50,7 +65,7 @@ export function Lobby({ game, onBack }: { game: OnlineGame; onBack: () => void }
                   className="btn btn--ghost"
                   onClick={() => game.removeSeat(s.seat)}
                 >
-                  remove
+                  {t('lobby.remove')}
                 </button>
               )}
             </li>
@@ -60,14 +75,14 @@ export function Lobby({ game, onBack }: { game: OnlineGame; onBack: () => void }
         {isHost && (
           <>
             <div className="lobby__bots">
-              {(['easy', 'normal', 'hard'] as BotDifficulty[]).map((d) => (
+              {DIFFICULTIES.map((d) => (
                 <button
                   key={d}
                   type="button"
                   className="btn btn--ghost"
                   onClick={() => game.addBot(d)}
                 >
-                  + {d} bot
+                  {t('lobby.addBot', { difficulty: t(difficultyKey(d)) })}
                 </button>
               ))}
             </div>
@@ -77,20 +92,22 @@ export function Lobby({ game, onBack }: { game: OnlineGame; onBack: () => void }
               onClick={game.start}
               disabled={!canStart}
             >
-              {canStart ? 'Start the game' : 'Need at least two players'}
+              {canStart ? t('lobby.start') : t('lobby.needTwo')}
             </button>
           </>
         )}
-        {!isHost && <p className="setup__blurb">Waiting for the host to start…</p>}
+        {!isHost && <p className="setup__blurb">{t('lobby.waitingHost')}</p>}
       </Shell>
     );
   }
 
   // Not in a room yet.
   return (
-    <Shell title="Play online" onBack={onBack} error={game.error}>
+    <Shell title={t('lobby.title')} onBack={onBack} error={game.error}>
+      <LanguagePicker />
+
       <label className="setup__field">
-        Your name
+        {t('lobby.yourName')}
         <input
           value={name}
           maxLength={16}
@@ -100,7 +117,7 @@ export function Lobby({ game, onBack }: { game: OnlineGame; onBack: () => void }
       </label>
 
       <label className="setup__field">
-        Build up to
+        {t('lobby.buildUpTo')}
         <select value={topValue} onChange={(e) => setTopValue(Number(e.target.value))}>
           <option value={16}>16</option>
           <option value={15}>15</option>
@@ -110,15 +127,15 @@ export function Lobby({ game, onBack }: { game: OnlineGame; onBack: () => void }
       <button
         type="button"
         className="btn btn--primary"
-        onClick={() => game.create(name || 'Host', topValue)}
+        onClick={() => game.create(name || t('lobby.hostName'), topValue)}
       >
-        Create a room
+        {t('lobby.create')}
       </button>
 
-      <div className="lobby__divider">or</div>
+      <div className="lobby__divider">{t('lobby.or')}</div>
 
       <label className="setup__field">
-        Room code
+        {t('lobby.roomCode')}
         <input
           value={code}
           maxLength={4}
@@ -129,10 +146,10 @@ export function Lobby({ game, onBack }: { game: OnlineGame; onBack: () => void }
       <button
         type="button"
         className="btn"
-        onClick={() => game.join(code, name || 'Player')}
+        onClick={() => game.join(code, name || t('lobby.playerName'))}
         disabled={code.length !== 4}
       >
-        Join
+        {t('lobby.join')}
       </button>
     </Shell>
   );
@@ -142,22 +159,24 @@ function Shell({
   title,
   children,
   onBack,
-  backLabel = 'Back',
+  backLabel,
   error,
 }: {
   title: string;
   children?: React.ReactNode;
   onBack: () => void;
   backLabel?: string;
-  error: string | null;
+  error: Message<ErrorReason> | null;
 }) {
+  const { t, say } = useT();
+
   return (
     <div className="setup">
       <h1>{title}</h1>
-      {error && <p className="rejection">{error}</p>}
+      {error && <p className="rejection">{say(error)}</p>}
       {children}
       <button type="button" className="btn btn--ghost" onClick={onBack}>
-        {backLabel}
+        {backLabel ?? t('lobby.back')}
       </button>
     </div>
   );

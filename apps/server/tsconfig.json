@@ -5,6 +5,7 @@
     "paths": {
       "@flens/engine": ["../../packages/engine/src/index.ts"],
       "@flens/bot": ["../../packages/bot/src/index.ts"],
+      "@flens/i18n": ["../../packages/i18n/src/index.ts"],
       "@flens/protocol": ["../../packages/protocol/src/index.ts"]
     }
   },

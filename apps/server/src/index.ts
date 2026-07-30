@@ -9,7 +9,12 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { WebSocketServer, type WebSocket } from 'ws';
-import { isClientMessage, type ClientMessage, type ServerMessage } from '@flens/protocol';
+import {
+  isClientMessage,
+  type ClientMessage,
+  type ErrorReason,
+  type ServerMessage,
+} from '@flens/protocol';
 import { Room, TICK_MS } from './room.js';
 import { RoomRegistry } from './rooms.js';
 
@@ -105,10 +110,10 @@ wss.on('connection', (socket) => {
     try {
       parsed = JSON.parse(raw.toString());
     } catch {
-      return send(socket, { type: 'error', message: 'malformed message' });
+      return send(socket, refusal('error.malformedMessage'));
     }
     if (!isClientMessage(parsed)) {
-      return send(socket, { type: 'error', message: 'unrecognised message' });
+      return send(socket, refusal('error.unrecognisedMessage'));
     }
     handle(session, parsed);
   });
@@ -130,7 +135,7 @@ function handle(session: Session, message: ClientMessage): void {
         onBroadcast: () => broadcastState(room),
       });
       const added = room.addHuman(message.name, session.token);
-      if ('error' in added) return send(session.socket, { type: 'error', message: added.error });
+      if ('error' in added) return send(session.socket, refusal(added.error));
 
       session.room = room;
       session.seat = added.seat;
@@ -154,7 +159,7 @@ function handle(session: Session, message: ClientMessage): void {
       });
 
       const added = room.addHuman(message.name, session.token);
-      if ('error' in added) return send(session.socket, { type: 'error', message: added.error });
+      if ('error' in added) return send(session.socket, refusal(added.error));
 
       session.room = room;
       session.seat = added.seat;
@@ -171,10 +176,10 @@ function handle(session: Session, message: ClientMessage): void {
 
     case 'join': {
       const room = registry.get(message.code);
-      if (!room) return send(session.socket, { type: 'error', message: 'no room with that code' });
+      if (!room) return send(session.socket, refusal('error.noRoomWithCode'));
 
       const added = room.addHuman(message.name, session.token);
-      if ('error' in added) return send(session.socket, { type: 'error', message: added.error });
+      if ('error' in added) return send(session.socket, refusal(added.error));
 
       session.room = room;
       session.seat = added.seat;
@@ -191,11 +196,11 @@ function handle(session: Session, message: ClientMessage): void {
 
     case 'resume': {
       const room = registry.get(message.code);
-      if (!room) return send(session.socket, { type: 'error', message: 'no room with that code' });
+      if (!room) return send(session.socket, refusal('error.noRoomWithCode'));
 
       const resumed = room.resume(message.token);
       if ('error' in resumed) {
-        return send(session.socket, { type: 'error', message: resumed.error });
+        return send(session.socket, refusal(resumed.error));
       }
 
       // Adopt the old token so this connection owns the original seat.
@@ -218,7 +223,7 @@ function handle(session: Session, message: ClientMessage): void {
       const room = requireRoom(session);
       if (!room) return;
       const failed = room.addBot(message.difficulty);
-      if (failed) return send(session.socket, { type: 'error', message: failed.error });
+      if (failed) return send(session.socket, refusal(failed.error));
       broadcastLobby(room);
       return;
     }
@@ -227,7 +232,7 @@ function handle(session: Session, message: ClientMessage): void {
       const room = requireRoom(session);
       if (!room) return;
       const failed = room.removeSeat(message.seat, session.token);
-      if (failed) return send(session.socket, { type: 'error', message: failed.error });
+      if (failed) return send(session.socket, refusal(failed.error));
       broadcastLobby(room);
       return;
     }
@@ -236,7 +241,7 @@ function handle(session: Session, message: ClientMessage): void {
       const room = requireRoom(session);
       if (!room) return;
       const failed = room.start(session.token);
-      if (failed) return send(session.socket, { type: 'error', message: failed.error });
+      if (failed) return send(session.socket, refusal(failed.error));
       broadcastLobby(room);
       broadcastState(room);
       return;
@@ -249,11 +254,11 @@ function handle(session: Session, message: ClientMessage): void {
       // The seat comes from the token, not the message.
       const seat = room.seatFor(session.token);
       if (seat === null) {
-        return send(session.socket, { type: 'error', message: 'you do not hold a seat here' });
+        return send(session.socket, refusal('error.noSeatHere'));
       }
 
       const failed = room.submit(seat, message.action);
-      if (failed) send(session.socket, { type: 'error', message: failed.error });
+      if (failed) send(session.socket, refusal(failed.error));
       return;
     }
 
@@ -272,11 +277,18 @@ function handle(session: Session, message: ClientMessage): void {
 
 function requireRoom(session: Session): Room | null {
   if (!session.room) {
-    send(session.socket, { type: 'error', message: 'you are not in a room' });
+    send(session.socket, refusal('error.notInRoom'));
     return null;
   }
   return session.room;
 }
+
+/**
+ * The server never words a refusal — it names one. Each client renders the key
+ * in whatever language its player chose, which is what lets one room be read in
+ * three at once.
+ */
+const refusal = (error: ErrorReason): ServerMessage => ({ type: 'error', error: { key: error } });
 
 function send(socket: WebSocket, message: ServerMessage): void {
   if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(message));

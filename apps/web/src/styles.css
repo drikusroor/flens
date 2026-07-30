@@ -76,6 +76,39 @@ button:disabled {
   padding: 0.4rem 0.6rem;
 }
 
+/* The language switcher. Reads as one of the setup fields on the menu, and
+   shrinks to a bare select in the table header. */
+.lang {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  background: var(--felt);
+  border: 1px solid var(--felt-edge);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+}
+
+.lang select {
+  background: #16241b;
+  color: var(--ink);
+  border: 1px solid var(--felt-edge);
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+}
+
+.lang--compact {
+  background: none;
+  border: none;
+  padding: 0;
+  gap: 0;
+}
+
+.lang--compact select {
+  font-size: 0.85rem;
+  padding: 0.25rem 0.4rem;
+}
+
 .setup__check {
   display: flex;
   gap: 0.75rem;

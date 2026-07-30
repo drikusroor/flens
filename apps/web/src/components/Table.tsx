@@ -4,6 +4,7 @@ import { useCardFlip } from '../animation/useCardFlip';
 import { isMuted, playSound, setMuted, unlockAudio } from '../audio/sfx';
 import { primeVoices, shoutFlens } from '../audio/speech';
 import { useTableAudio } from '../audio/useTableAudio';
+import { LanguagePicker, useT } from '../i18n/locale';
 import type { TableController } from '../game/controller';
 import type { PlaySource } from '../game/useFlensGame';
 import { Centre } from './Centre';
@@ -20,6 +21,7 @@ interface TableProps {
 }
 
 export function Table({ game, controls, result }: TableProps) {
+  const { t, say } = useT();
   const [selected, setSelected] = useState<PlaySource | null>(null);
   const [muted, setMutedState] = useState(isMuted);
   const { view, seat } = game;
@@ -69,10 +71,13 @@ export function Table({ game, controls, result }: TableProps) {
   }, []);
 
   // A rejected action should be audible — it is easy to miss the red text.
+  // Compared by key rather than by object: a fresh descriptor for the same
+  // refusal is the same refusal, and should not chirp twice.
   const lastError = useRef<string | null>(null);
   useEffect(() => {
-    if (game.lastError && game.lastError !== lastError.current) playSound('error');
-    lastError.current = game.lastError;
+    const key = game.lastError?.key ?? null;
+    if (key && key !== lastError.current) playSound('error');
+    lastError.current = key;
   }, [game.lastError]);
 
   const select = (source: PlaySource | null) => {
@@ -109,25 +114,26 @@ export function Table({ game, controls, result }: TableProps) {
   return (
     <div className={`table ${jolt ? `table--${jolt}` : ''}`}>
       <header className="table__header">
-        <h1>Flens</h1>
+        <h1>{t('app.name')}</h1>
         <div className="table__meta">
           <span>
-            Building 1&ndash;{view.config.topValue} &middot; {view.voorraadCount} in the supply
+            {t('table.supply', { top: view.config.topValue, count: view.voorraadCount })}
           </span>
           {game.turnRemainingMs !== null && view.phase === 'playing' && (
             <span className={game.turnRemainingMs < 10_000 ? 'clock clock--low' : 'clock'}>
-              {Math.ceil(game.turnRemainingMs / 1000)}s
+              {t('table.clock', { seconds: Math.ceil(game.turnRemainingMs / 1000) })}
             </span>
           )}
           <button
             type="button"
             className="btn btn--ghost"
             onClick={toggleMute}
-            aria-label={muted ? 'Unmute' : 'Mute'}
-            title={muted ? 'Sound off' : 'Sound on'}
+            aria-label={muted ? t('table.unmute') : t('table.mute')}
+            title={muted ? t('table.soundOff') : t('table.soundOn')}
           >
             {muted ? '🔇' : '🔊'}
           </button>
+          <LanguagePicker compact />
           {controls}
         </div>
       </header>
@@ -146,7 +152,7 @@ export function Table({ game, controls, result }: TableProps) {
         onPass={game.pass}
       />
 
-      {game.lastError && <p className="rejection">{game.lastError}</p>}
+      {game.lastError && <p className="rejection">{say(game.lastError)}</p>}
       {result}
 
       <Log entries={view.log} />

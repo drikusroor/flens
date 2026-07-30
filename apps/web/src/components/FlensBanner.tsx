@@ -1,3 +1,4 @@
+import { useT } from '../i18n/locale';
 import type { TableController } from '../game/controller';
 
 /**
@@ -9,6 +10,7 @@ import type { TableController } from '../game/controller';
  * shows up", which is not the game.
  */
 export function FlensBanner({ game, onCall }: { game: TableController; onCall: () => void }) {
+  const { t, locale } = useT();
   const { view, hints, infractionVisible, flensTarget } = game;
   const live = hints && infractionVisible;
   const pct = live
@@ -23,7 +25,7 @@ export function FlensBanner({ game, onCall }: { game: TableController; onCall: (
         onClick={onCall}
         disabled={view.phase !== 'playing'}
       >
-        FLENS!
+        {t('flens.call')}
       </button>
 
       {live ? (
@@ -32,14 +34,18 @@ export function FlensBanner({ game, onCall }: { game: TableController; onCall: (
             <div className="flens__bar" style={{ width: `${pct}%` }} />
           </div>
           <span className="flens__count">
-            {flensTarget} slipped up &middot; {(view.flensWindowRemainingMs / 1000).toFixed(1)}s
+            {t('flens.slipped', {
+              name: flensTarget ?? '',
+              // Dutch and Spanish want a comma where English wants a point.
+              seconds: new Intl.NumberFormat(locale, {
+                minimumFractionDigits: 1,
+                maximumFractionDigits: 1,
+              }).format(view.flensWindowRemainingMs / 1000),
+            })}
           </span>
         </>
       ) : (
-        <span className="flens__hint">
-          Call it when someone plays out of sequence, or ends a turn with a play still
-          available. Wrong call: two cards onto your own flensstok.
-        </span>
+        <span className="flens__hint">{t('flens.hint')}</span>
       )}
     </div>
   );

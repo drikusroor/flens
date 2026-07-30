@@ -15,7 +15,7 @@ import {
   type GameView,
 } from '@flens/engine';
 import { PROFILES, botAction, botCallsFlens, type Difficulty } from '@flens/bot';
-import type { BotDifficulty, LobbyInfo, SeatInfo } from '@flens/protocol';
+import type { BotDifficulty, ErrorReason, LobbyInfo, SeatInfo } from '@flens/protocol';
 
 export const MAX_SEATS = 6;
 export const TICK_MS = 100;
@@ -38,6 +38,14 @@ interface Seat {
 interface FlensIntent {
   infractionAt: number;
   callers: Map<number, number>;
+}
+
+/**
+ * A refusal, as a code the client can say in its own language. Never a
+ * sentence: the server has no idea what the player reads.
+ */
+export interface Refusal {
+  readonly error: ErrorReason;
 }
 
 export interface RoomEvents {
@@ -77,12 +85,14 @@ export class Room {
   // Lobby
   // -------------------------------------------------------------------------
 
-  addHuman(name: string, token: string): { seat: number } | { error: string } {
-    if (this.game) return { error: 'that game has already started' };
-    if (this.seats.length >= MAX_SEATS) return { error: 'that room is full' };
+  addHuman(name: string, token: string): { seat: number } | Refusal {
+    if (this.game) return { error: 'error.alreadyStarted' };
+    if (this.seats.length >= MAX_SEATS) return { error: 'error.roomFull' };
 
     const seat: Seat = {
       seat: this.seats.length,
+      // A stand-in name is not localised: a name is data, and the same seat has
+      // to read the same way to everyone at the table.
       name: sanitiseName(name) || `Player ${this.seats.length + 1}`,
       kind: 'human',
       difficulty: 'normal',
@@ -93,9 +103,9 @@ export class Room {
     return { seat: seat.seat };
   }
 
-  addBot(difficulty: BotDifficulty): { error: string } | null {
-    if (this.game) return { error: 'that game has already started' };
-    if (this.seats.length >= MAX_SEATS) return { error: 'that room is full' };
+  addBot(difficulty: BotDifficulty): Refusal | null {
+    if (this.game) return { error: 'error.alreadyStarted' };
+    if (this.seats.length >= MAX_SEATS) return { error: 'error.roomFull' };
 
     const names = ['Bram', 'Cato', 'Dirk', 'Eef', 'Fokke', 'Geert'];
     this.seats.push({
@@ -109,14 +119,14 @@ export class Room {
     return null;
   }
 
-  removeSeat(seat: number, byToken: string): { error: string } | null {
-    if (this.game) return { error: 'the game has already started' };
+  removeSeat(seat: number, byToken: string): Refusal | null {
+    if (this.game) return { error: 'error.alreadyStarted' };
     const host = this.seats.find((s) => s.seat === this.hostSeat);
-    if (!host || host.token !== byToken) return { error: 'only the host can do that' };
+    if (!host || host.token !== byToken) return { error: 'error.hostOnly' };
 
     const target = this.seats.find((s) => s.seat === seat);
-    if (!target) return { error: 'no such seat' };
-    if (target.kind === 'human') return { error: 'cannot remove a player' };
+    if (!target) return { error: 'error.noSuchSeat' };
+    if (target.kind === 'human') return { error: 'error.cannotRemovePlayer' };
 
     this.seats = this.seats.filter((s) => s.seat !== seat);
     this.reindexSeats();
@@ -129,9 +139,9 @@ export class Room {
     this.hostSeat = 0;
   }
 
-  resume(token: string): { seat: number } | { error: string } {
+  resume(token: string): { seat: number } | Refusal {
     const seat = this.seats.find((s) => s.kind === 'human' && s.token === token);
-    if (!seat) return { error: 'no seat here matches that token' };
+    if (!seat) return { error: 'error.unknownToken' };
     seat.connected = true;
     return { seat: seat.seat };
   }
@@ -148,11 +158,11 @@ export class Room {
     }
   }
 
-  start(byToken: string): { error: string } | null {
-    if (this.game) return { error: 'already started' };
+  start(byToken: string): Refusal | null {
+    if (this.game) return { error: 'error.alreadyStarted' };
     const host = this.seats.find((s) => s.seat === this.hostSeat);
-    if (!host || host.token !== byToken) return { error: 'only the host can start' };
-    if (this.seats.length < 2) return { error: 'need at least two players' };
+    if (!host || host.token !== byToken) return { error: 'error.hostOnlyStart' };
+    if (this.seats.length < 2) return { error: 'error.needTwoPlayers' };
 
     this.game = newGame({
       playerNames: this.seats.map((s) => s.name),
@@ -195,9 +205,9 @@ export class Room {
    * Apply a human action. The seat comes from the connection's token, never
    * from the message, so a client cannot act on another player's behalf.
    */
-  submit(seat: number, action: Action): { error: string } | null {
-    if (!this.game) return { error: 'the game has not started' };
-    if (action.type === 'tick') return { error: 'clients do not control the clock' };
+  submit(seat: number, action: Action): Refusal | null {
+    if (!this.game) return { error: 'error.notStarted' };
+    if (action.type === 'tick') return { error: 'error.clientClock' };
 
     const owned = { ...action, player: seat } as Action;
     const result = reduce(this.game, owned);

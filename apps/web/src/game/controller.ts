@@ -1,4 +1,5 @@
 import type { GameView } from '@flens/engine';
+import type { Message } from '@flens/i18n';
 import type { PlaySource } from './useFlensGame';
 
 /**
@@ -16,7 +17,8 @@ export interface TableController {
   readonly infractionVisible: boolean;
   readonly hints: boolean;
   readonly flensTarget: string | null;
-  readonly lastError: string | null;
+  /** Why the last action was refused, unworded. Say it with `useT`. */
+  readonly lastError: Message | null;
 
   readonly play: (from: PlaySource, centreIndex: number) => void;
   readonly discard: (handIndex: number, openPileIndex: number) => void;

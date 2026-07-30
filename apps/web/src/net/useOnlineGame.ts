@@ -13,7 +13,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Action, GameView } from '@flens/engine';
-import type { BotDifficulty, ClientMessage, LobbyInfo, ServerMessage } from '@flens/protocol';
+import type { Message } from '@flens/i18n';
+import type {
+  BotDifficulty,
+  ClientMessage,
+  ErrorReason,
+  LobbyInfo,
+  ServerMessage,
+} from '@flens/protocol';
 import type { PlaySource } from '../game/useFlensGame';
 
 const TOKEN_KEY = 'flens.token';
@@ -39,7 +46,8 @@ export interface OnlineGame {
   readonly lobby: LobbyInfo | null;
   readonly view: GameView | null;
   readonly seat: number | null;
-  readonly error: string | null;
+  /** Unworded, so this browser says it in its own language. */
+  readonly error: Message<ErrorReason> | null;
   readonly isYourTurn: boolean;
   /** Extrapolated locally between server messages. */
   readonly turnRemainingMs: number | null;
@@ -64,7 +72,7 @@ export function useOnlineGame(url: string): OnlineGame {
   const [lobby, setLobby] = useState<LobbyInfo | null>(null);
   const [view, setView] = useState<GameView | null>(null);
   const [seat, setSeat] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Message<ErrorReason> | null>(null);
 
   /** Wall-clock time the current view arrived, for extrapolating countdowns. */
   const receivedAtRef = useRef<number>(0);
@@ -87,7 +95,7 @@ export function useOnlineGame(url: string): OnlineGame {
       if (token && code) socket.send(JSON.stringify({ type: 'resume', code, token }));
     };
     socket.onclose = () => setStatus('closed');
-    socket.onerror = () => setError('connection problem');
+    socket.onerror = () => setError({ key: 'error.connection' });
 
     socket.onmessage = (event) => {
       let message: ServerMessage;
@@ -113,7 +121,7 @@ export function useOnlineGame(url: string): OnlineGame {
           setView(message.view);
           break;
         case 'error':
-          setError(message.message);
+          setError(message.error);
           break;
       }
     };

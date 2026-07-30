@@ -10,9 +10,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { reduce, viewFor, type Action, type GameState } from '@flens/engine';
+import type { Message } from '@flens/i18n';
 import type { TableController } from '../game/controller';
 import type { PlaySource } from '../game/useFlensGame';
-import { judge, LESSONS, LEARNER, type Lesson, type Zone } from './lessons';
+import { useT } from '../i18n/locale';
+import { judge, LESSONS, LEARNER, OPPONENT_NAME, type Lesson, type Zone } from './lessons';
 
 const TICK_MS = 100;
 
@@ -39,7 +41,7 @@ export interface TutorialController extends TableController {
   readonly stage: Stage;
   readonly focus: Zone | null;
   /** Nudge, or the explanation after a punishment. Cleared as soon as they act. */
-  readonly coach: string | null;
+  readonly coach: Message | null;
   readonly arm: () => void;
   readonly next: () => void;
   readonly restartLesson: () => void;
@@ -48,14 +50,28 @@ export interface TutorialController extends TableController {
 const openingStage = (lesson: Lesson | undefined): Stage =>
   lesson?.arm === true ? 'briefing' : 'doing';
 
+/** The line shown after a deliberate mistake has been punished. */
+const mistakeLine = (lesson: Lesson): Message | null =>
+  lesson.mistake ? { key: lesson.mistake, params: { opponent: OPPONENT_NAME } } : null;
+
 export function useTutorial(): TutorialController {
+  const { t } = useT();
   const [index, setIndex] = useState(0);
   const [stage, setStage] = useState<Stage>(() => openingStage(LESSONS[0]));
-  const [coach, setCoach] = useState<string | null>(null);
+  const [coach, setCoach] = useState<Message | null>(null);
 
   const lesson = LESSONS[index] as Lesson;
 
-  const stateRef = useRef<GameState>(lesson.build());
+  /**
+   * The learner's seat name, which the log prints. Read from a ref so switching
+   * language mid-lesson does not re-deal the table underneath them; the next
+   * deal picks the new one up.
+   */
+  const learnerName = t('you.title');
+  const learnerNameRef = useRef(learnerName);
+  learnerNameRef.current = learnerName;
+
+  const stateRef = useRef<GameState>(lesson.build(learnerName));
   const opponentAtRef = useRef(OPPONENT_PACE_MS);
   /** True once an infraction has existed in this attempt, so a miss is detectable. */
   const sawInfractionRef = useRef(false);
@@ -76,8 +92,8 @@ export function useTutorial(): TutorialController {
   const rerender = useCallback(() => bump((v) => v + 1), []);
 
   const loadLesson = useCallback(
-    (next: Lesson, message: string | null = null) => {
-      stateRef.current = next.build();
+    (next: Lesson, message: Message | null = null) => {
+      stateRef.current = next.build(learnerNameRef.current);
       opponentAtRef.current = OPPONENT_PACE_MS;
       sawInfractionRef.current = false;
       resetAtRef.current = null;
@@ -113,7 +129,7 @@ export function useTutorial(): TutorialController {
       if (!apply(action)) {
         // Something the gate allowed but the engine refused is a tutorial bug,
         // not a player mistake. Say so rather than leaving them clicking.
-        setCoach('That should have worked — skip on, and mention what you clicked.');
+        setCoach({ key: 'tutorial.bug' });
         rerender();
         return;
       }
@@ -153,15 +169,15 @@ export function useTutorial(): TutorialController {
         if (lesson.permitMistake) {
           // They ended the turn badly and the opponent called it: the lesson.
           enter('punished');
-          setCoach(lesson.mistake ?? null);
+          setCoach(mistakeLine(lesson));
           resetAtRef.current = stateRef.current.now + RESET_AFTER_MS;
         } else {
-          loadLesson(lesson, 'Gone — the window is six seconds wide. Once more.');
+          loadLesson(lesson, { key: 'tutorial.windowClosed' });
         }
       }
 
       if (resetAtRef.current !== null && stateRef.current.now >= resetAtRef.current) {
-        loadLesson(lesson, lesson.mistake ?? null);
+        loadLesson(lesson, mistakeLine(lesson));
       }
 
       if (stateRef.current !== before) rerender();

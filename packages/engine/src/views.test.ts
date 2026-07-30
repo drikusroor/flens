@@ -89,7 +89,7 @@ describe('infractions are withheld by default', () => {
 
   it('keeps the mistake out of the log too', () => {
     const view = viewFor(afterBadPlay(), 1);
-    expect(view.log.some((e) => e.message.includes('infraction'))).toBe(false);
+    expect(view.log.some((e) => e.kind === 'infraction')).toBe(false);
   });
 
   it('leaks nothing about it in the serialised payload', () => {
@@ -125,7 +125,7 @@ describe('infractions are withheld by default', () => {
 
     expect(view.pendingInfraction).toMatchObject({ kind: 'outOfSequence', offender: 0 });
     expect(view.flensWindowRemainingMs).toBeGreaterThan(0);
-    expect(view.log.some((e) => e.message.includes('infraction'))).toBe(true);
+    expect(view.log.some((e) => e.kind === 'infraction')).toBe(true);
   });
 });
 

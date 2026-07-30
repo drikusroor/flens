@@ -40,7 +40,7 @@ describe('lobby', () => {
 
   it('refuses a seventh player', () => {
     const { room } = seatedRoom(6);
-    expect(room.addHuman('Late', 'token-late')).toMatchObject({ error: 'that room is full' });
+    expect(room.addHuman('Late', 'token-late')).toMatchObject({ error: 'error.roomFull' });
   });
 
   it('strips control characters and markup from names', () => {
@@ -71,13 +71,13 @@ describe('lobby', () => {
     const { room, tokens } = seatedRoom(2);
     room.addBot('easy');
 
-    expect(room.removeSeat(2, tokens[1]!)).toMatchObject({ error: 'only the host can do that' });
+    expect(room.removeSeat(2, tokens[1]!)).toMatchObject({ error: 'error.hostOnly' });
     expect(room.lobby().seats).toHaveLength(3);
   });
 
   it('does not let anyone remove a human', () => {
     const { room, tokens } = seatedRoom(2);
-    expect(room.removeSeat(1, tokens[0]!)).toMatchObject({ error: 'cannot remove a player' });
+    expect(room.removeSeat(1, tokens[0]!)).toMatchObject({ error: 'error.cannotRemovePlayer' });
   });
 
   it('keeps seat numbers contiguous after a removal', () => {
@@ -93,12 +93,12 @@ describe('lobby', () => {
 describe('starting', () => {
   it('needs two players', () => {
     const { room, tokens } = seatedRoom(1);
-    expect(room.start(tokens[0]!)).toMatchObject({ error: 'need at least two players' });
+    expect(room.start(tokens[0]!)).toMatchObject({ error: 'error.needTwoPlayers' });
   });
 
   it('only the host may start', () => {
     const { room, tokens } = seatedRoom(2);
-    expect(room.start(tokens[1]!)).toMatchObject({ error: 'only the host can start' });
+    expect(room.start(tokens[1]!)).toMatchObject({ error: 'error.hostOnlyStart' });
   });
 
   it('deals once started', () => {
@@ -114,14 +114,14 @@ describe('starting', () => {
   it('refuses to start twice', () => {
     const { room, tokens } = seatedRoom(2);
     room.start(tokens[0]!);
-    expect(room.start(tokens[0]!)).toMatchObject({ error: 'already started' });
+    expect(room.start(tokens[0]!)).toMatchObject({ error: 'error.alreadyStarted' });
   });
 
   it('refuses new players once dealt', () => {
     const { room, tokens } = seatedRoom(2);
     room.start(tokens[0]!);
     expect(room.addHuman('Late', 'late')).toMatchObject({
-      error: 'that game has already started',
+      error: 'error.alreadyStarted',
     });
   });
 });
@@ -176,7 +176,7 @@ describe('acting', () => {
     const { room } = seatedRoom(2);
     expect(
       room.submit(0, { type: 'discard', player: 0, handIndex: 0, openPileIndex: 0 }),
-    ).toMatchObject({ error: 'the game has not started' });
+    ).toMatchObject({ error: 'error.notStarted' });
   });
 
   it('rejects a client trying to drive the clock', () => {
@@ -184,7 +184,7 @@ describe('acting', () => {
     room.start(tokens[0]!);
 
     expect(room.submit(0, { type: 'tick', ms: 999_999 })).toMatchObject({
-      error: 'clients do not control the clock',
+      error: 'error.clientClock',
     });
   });
 
@@ -201,7 +201,7 @@ describe('acting', () => {
       openPileIndex: 0,
     });
 
-    expect(failed).toMatchObject({ error: 'not your turn' });
+    expect(failed).toMatchObject({ error: 'reject.notYourTurn' });
     expect(room.viewForSeat(1)!.players[1]!.hand).toHaveLength(5);
   });
 
@@ -241,7 +241,7 @@ describe('disconnects', () => {
 
   it('refuses a resume with an unknown token', () => {
     const { room } = seatedRoom(2);
-    expect(room.resume('stolen')).toMatchObject({ error: 'no seat here matches that token' });
+    expect(room.resume('stolen')).toMatchObject({ error: 'error.unknownToken' });
   });
 });
 

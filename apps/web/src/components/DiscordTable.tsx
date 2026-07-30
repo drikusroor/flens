@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { BotDifficulty } from '@flens/protocol';
 import type { TableController } from '../game/controller';
 import type { DiscordSession } from '../discord/useDiscord';
+import { useT } from '../i18n/locale';
 import type { OnlineGame } from '../net/useOnlineGame';
 import { Table } from './Table';
 
@@ -16,6 +17,7 @@ export function DiscordTable({
   discord: DiscordSession;
   online: OnlineGame;
 }) {
+  const { t, say } = useT();
   const joinedRef = useRef(false);
 
   useEffect(() => {
@@ -26,18 +28,15 @@ export function DiscordTable({
     if (online.seat !== null) return;
 
     joinedRef.current = true;
-    online.joinInstance(discord.instanceId, discord.displayName ?? 'Player');
-  }, [discord.status, discord.instanceId, discord.displayName, online]);
+    online.joinInstance(discord.instanceId, discord.displayName ?? t('lobby.playerName'));
+  }, [discord.status, discord.instanceId, discord.displayName, online, t]);
 
   if (discord.status === 'error') {
     return (
       <div className="setup">
-        <h1>Flens</h1>
+        <h1>{t('app.name')}</h1>
         <p className="rejection">{discord.error}</p>
-        <p className="setup__blurb">
-          The Activity could not finish signing in with Discord. Check that the client id
-          matches the application and that the server has its client secret.
-        </p>
+        <p className="setup__blurb">{t('discord.signInFailed')}</p>
       </div>
     );
   }
@@ -45,8 +44,8 @@ export function DiscordTable({
   if (discord.status !== 'ready' || !online.lobby) {
     return (
       <div className="setup">
-        <h1>Flens</h1>
-        <p className="setup__blurb">Connecting to Discord…</p>
+        <h1>{t('app.name')}</h1>
+        <p className="setup__blurb">{t('discord.connecting')}</p>
       </div>
     );
   }
@@ -57,20 +56,22 @@ export function DiscordTable({
 
     return (
       <div className="setup">
-        <h1>Flens</h1>
-        <p className="setup__blurb">
-          Everyone who opens this Activity joins the same table. Waiting to start…
-        </p>
+        <h1>{t('app.name')}</h1>
+        <p className="setup__blurb">{t('discord.sameTable')}</p>
 
         <ul className="lobby__seats">
           {online.lobby.seats.map((s) => (
             <li key={s.seat} className="lobby__seat">
               <span>
                 {s.name}
-                {s.seat === online.seat && <em> (you)</em>}
+                {s.seat === online.seat && <em> {t('lobby.you')}</em>}
               </span>
               <span className="lobby__tag">
-                {s.kind === 'bot' ? `bot · ${s.difficulty}` : s.connected ? 'ready' : 'away'}
+                {s.kind === 'bot'
+                  ? t('lobby.botTag', { difficulty: t(`difficulty.${s.difficulty ?? 'normal'}`) })
+                  : s.connected
+                    ? t('lobby.ready')
+                    : t('lobby.away')}
               </span>
             </li>
           ))}
@@ -86,7 +87,7 @@ export function DiscordTable({
                   className="btn btn--ghost"
                   onClick={() => online.addBot(d)}
                 >
-                  + {d} bot
+                  {t('lobby.addBot', { difficulty: t(`difficulty.${d}`) })}
                 </button>
               ))}
             </div>
@@ -96,14 +97,14 @@ export function DiscordTable({
               onClick={online.start}
               disabled={!canStart}
             >
-              {canStart ? 'Start the game' : 'Need at least two players'}
+              {canStart ? t('lobby.start') : t('lobby.needTwo')}
             </button>
           </>
         ) : (
-          <p className="setup__blurb">Waiting for the host to start…</p>
+          <p className="setup__blurb">{t('lobby.waitingHost')}</p>
         )}
 
-        {online.error && <p className="rejection">{online.error}</p>}
+        {online.error && <p className="rejection">{say(online.error)}</p>}
       </div>
     );
   }
@@ -127,6 +128,7 @@ export function DiscordTable({
 }
 
 function DiscordResult({ game }: { game: TableController }) {
+  const { t } = useT();
   const { view } = game;
   if (view.phase === 'playing') return null;
 
@@ -134,10 +136,10 @@ function DiscordResult({ game }: { game: TableController }) {
     <div className="result">
       <h2>
         {view.phase === 'stalemate'
-          ? 'Draw — nobody could move'
+          ? t('result.draw')
           : view.winner === game.seat
-            ? 'You win!'
-            : `${view.players[view.winner ?? 0]?.name} wins`}
+            ? t('result.youWin')
+            : t('result.wins', { name: view.players[view.winner ?? 0]?.name ?? '' })}
       </h2>
     </div>
   );

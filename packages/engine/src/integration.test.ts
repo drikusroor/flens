@@ -152,7 +152,7 @@ describe('a full game', () => {
     const start = game({ playerNames: ['Ada', 'Bram'], seed: 11 });
     const { state } = playOut(start);
 
-    expect(state.log.some((e) => e.message.includes('infraction'))).toBe(false);
+    expect(state.log.some((e) => e.kind === 'infraction')).toBe(false);
   });
 
   it('plays the 1..15 variant just as happily', () => {

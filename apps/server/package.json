@@ -12,6 +12,7 @@
   "dependencies": {
     "@flens/bot": "*",
     "@flens/engine": "*",
+    "@flens/i18n": "*",
     "@flens/protocol": "*",
     "ws": "^8.18.0"
   },

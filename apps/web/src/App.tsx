@@ -8,6 +8,7 @@ import { DiscordTable } from './components/DiscordTable';
 import { Lobby } from './components/Lobby';
 import { Setup, type SetupChoices } from './components/Setup';
 import { Table } from './components/Table';
+import { useT } from './i18n/locale';
 import { Tutorial } from './tutorial/Tutorial';
 
 const DISCORD_CLIENT_ID = import.meta.env['VITE_DISCORD_CLIENT_ID'] as string | undefined;
@@ -93,12 +94,14 @@ function DiscordApp() {
 }
 
 function LocalTable({ choices, onQuit }: { choices: SetupChoices; onQuit: () => void }) {
+  const { t } = useT();
   const game = useFlensGame({
     opponents: choices.opponents,
     difficulty: choices.difficulty as Difficulty,
     topValue: choices.topValue,
     seed: choices.seed,
     hints: choices.hints,
+    youName: t('you.title'),
   });
 
   return (
@@ -107,10 +110,10 @@ function LocalTable({ choices, onQuit }: { choices: SetupChoices; onQuit: () => 
       controls={
         <>
           <button type="button" className="btn btn--ghost" onClick={() => game.restart()}>
-            New deal
+            {t('table.newDeal')}
           </button>
           <button type="button" className="btn btn--ghost" onClick={onQuit}>
-            Change setup
+            {t('table.changeSetup')}
           </button>
         </>
       }
@@ -120,6 +123,7 @@ function LocalTable({ choices, onQuit }: { choices: SetupChoices; onQuit: () => 
 }
 
 function OnlineTable({ onQuit }: { onQuit: () => void }) {
+  const { t } = useT();
   const online = useOnlineGame(SERVER_URL);
 
   // Until the deal lands, the lobby is the whole screen.
@@ -156,7 +160,7 @@ function OnlineTable({ onQuit }: { onQuit: () => void }) {
             onQuit();
           }}
         >
-          Leave
+          {t('table.leave')}
         </button>
       }
       result={<Result game={controller} />}
@@ -165,22 +169,23 @@ function OnlineTable({ onQuit }: { onQuit: () => void }) {
 }
 
 function Result({ game, onAgain }: { game: TableController; onAgain?: () => void }) {
+  const { t } = useT();
   const { view } = game;
   if (view.phase === 'playing') return null;
 
   const heading =
     view.phase === 'stalemate'
-      ? 'Draw — nobody could move'
+      ? t('result.draw')
       : view.winner === game.seat
-        ? 'You win!'
-        : `${view.players[view.winner ?? 0]?.name} wins`;
+        ? t('result.youWin')
+        : t('result.wins', { name: view.players[view.winner ?? 0]?.name ?? '' });
 
   return (
     <div className="result">
       <h2>{heading}</h2>
       {onAgain && (
         <button type="button" className="btn" onClick={onAgain}>
-          Play again
+          {t('result.playAgain')}
         </button>
       )}
     </div>

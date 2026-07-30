@@ -1,5 +1,6 @@
 import type { GameView } from '@flens/engine';
 import type { PlaySource } from '../game/useFlensGame';
+import { useT } from '../i18n/locale';
 import { Card } from './Card';
 
 interface YourAreaProps {
@@ -21,6 +22,7 @@ export function YourArea({
   onPileClick,
   onPass,
 }: YourAreaProps) {
+  const { t } = useT();
   const you = view.players[seat];
   if (!you) return null;
 
@@ -32,13 +34,15 @@ export function YourArea({
   return (
     <section className={`you ${isYourTurn ? 'you--active' : ''}`}>
       <h2 className="section-title">
-        You
-        <span className="you__turn">{isYourTurn ? 'your turn' : 'waiting…'}</span>
+        {t('you.title')}
+        <span className="you__turn">{isYourTurn ? t('you.yourTurn') : t('you.waiting')}</span>
       </h2>
 
       <div className="you__row">
         <div className="you__group" data-zone="flensstok">
-          <span className="you__label">Flensstok ({you.flensstokCount})</span>
+          <span className="you__label">
+            {t('you.flensstok', { count: you.flensstokCount })}
+          </span>
           <Card
             card={you.flensstokTop}
             depth={you.flensstokCount}
@@ -53,7 +57,7 @@ export function YourArea({
         </div>
 
         <div className="you__group" data-zone="openPiles">
-          <span className="you__label">Open piles — click one to discard</span>
+          <span className="you__label">{t('you.openPiles')}</span>
           <div className="you__piles">
             {you.openPiles.map((pile, index) => (
               <Card
@@ -70,7 +74,7 @@ export function YourArea({
       </div>
 
       <div className="you__group" data-zone="hand">
-        <span className="you__label">Hand</span>
+        <span className="you__label">{t('you.hand')}</span>
         <div className="you__hand">
           {(you.hand ?? []).map((card, index) => (
             <Card
@@ -87,7 +91,7 @@ export function YourArea({
           ))}
           {(you.hand ?? []).length === 0 && (
             <button type="button" className="btn btn--ghost" onClick={onPass} disabled={!isYourTurn}>
-              Nothing to play — pass
+              {t('you.pass')}
             </button>
           )}
         </div>

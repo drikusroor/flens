@@ -1,6 +1,7 @@
 /** Mutable working copy of `GameState`, used inside `reduce` and discarded after. */
 
-import type { Card, GameState, Infraction, LogEntry, LogKind } from './types.js';
+import type { Params } from '@flens/i18n';
+import type { Card, GameState, Infraction, LogEntry, LogKind, LogMessage } from './types.js';
 
 export interface DraftPlayer {
   id: number;
@@ -80,11 +81,22 @@ export function fromDraft(draft: Draft): GameState {
   };
 }
 
-export function note(draft: Draft, message: string, kind?: LogKind, secret = false): void {
-  const entry: LogEntry = { at: draft.now, message };
-  draft.log.push({
-    ...entry,
-    ...(kind ? { kind } : {}),
-    ...(secret ? { secret: true } : {}),
-  });
+/**
+ * Records what happened without wording it. `kind` is the coarse category a UI
+ * keys sound and styling off; `key` picks the actual line, since one kind can
+ * have several (a turn can time out into a play, a pass or a discard).
+ */
+export function note(
+  draft: Draft,
+  kind: LogKind,
+  key: LogMessage['key'],
+  params?: Params,
+  secret = false,
+): void {
+  const entry: LogEntry = {
+    at: draft.now,
+    kind,
+    text: params === undefined ? { key } : { key, params },
+  };
+  draft.log.push(secret ? { ...entry, secret: true } : entry);
 }

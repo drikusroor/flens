@@ -1,10 +1,7 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "types": ["vitest/globals"],
-    "paths": {
-      "@flens/i18n": ["../i18n/src/index.ts"]
-    }
+    "types": ["vitest/globals"]
   },
   "include": ["src/**/*.ts"]
 }

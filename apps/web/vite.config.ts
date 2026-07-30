@@ -17,6 +17,7 @@ export default defineConfig({
     alias: {
       '@flens/engine': pkg('engine'),
       '@flens/bot': pkg('bot'),
+      '@flens/i18n': pkg('i18n'),
       '@flens/protocol': pkg('protocol'),
     },
   },

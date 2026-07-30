@@ -85,14 +85,14 @@ describe('calling FLENS!', () => {
 
     // A second call now finds nothing pending, so it is a false call.
     const second = ok(first, { type: 'callFlens', player: 1 });
-    expect(second.log.at(-1)?.message).toContain('wrongly');
+    expect(second.log.at(-1)?.text.key).toBe('log.falseCall');
   });
 
   it('does not let the offender call themselves', () => {
     const next = ok(setup(), { type: 'callFlens', player: 0 });
 
     expect(values(next.centre[0]!.cards)).toEqual([1, 2, 3, 9]);
-    expect(next.log.at(-1)?.message).toContain('wrongly');
+    expect(next.log.at(-1)?.text.key).toBe('log.falseCall');
   });
 
   it('penalises a call with no infraction pending', () => {
@@ -155,14 +155,14 @@ describe('the Flens window', () => {
     expect(ticked.pendingInfraction).toBeNull();
 
     const next = ok(ticked, { type: 'callFlens', player: 1 });
-    expect(next.log.at(-1)?.message).toContain('wrongly');
+    expect(next.log.at(-1)?.text.key).toBe('log.falseCall');
   });
 
   it('lets an uncaught error stand, so the pile continues from the wrong value', () => {
     const ticked = ok(setup(), { type: 'tick', ms: 6001 });
 
     expect(values(ticked.centre[0]!.cards)).toEqual([1, 2, 3, 9]);
-    expect(ticked.log.some((e) => e.message.includes('got away with it'))).toBe(true);
+    expect(ticked.log.some((e) => e.text.key === 'log.gotAway')).toBe(true);
   });
 
   it('reverts an uncaught error when uncaughtErrorsStand is off', () => {
@@ -197,7 +197,7 @@ describe('the Flens window', () => {
     // Only the newer one is still callable; the first one stood.
     expect(second.pendingInfraction?.revert?.centreIndex).toBe(1);
     expect(values(second.centre[0]!.cards)).toEqual([1, 2, 3, 9]);
-    expect(second.log.some((e) => e.message.includes('got away with it'))).toBe(true);
+    expect(second.log.some((e) => e.text.key === 'log.gotAway')).toBe(true);
   });
 });
 

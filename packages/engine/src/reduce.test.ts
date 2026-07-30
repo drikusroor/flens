@@ -81,7 +81,7 @@ describe('playing to the centre', () => {
 
     expect(next.centre[0]!.cards).toHaveLength(0);
     expect(next.completed).toHaveLength(16);
-    expect(next.log.some((e) => e.message.includes('Pankouk'))).toBe(true);
+    expect(next.log.some((e) => e.text.key === 'log.pankouk')).toBe(true);
   });
 });
 
@@ -90,12 +90,12 @@ describe('impossible actions are rejected', () => {
 
   it('rejects playing out of turn', () => {
     const result = reduce(state, play(1, hand(0), 0));
-    expect(result).toMatchObject({ ok: false, reason: 'not your turn' });
+    expect(result).toMatchObject({ ok: false, reason: 'reject.notYourTurn' });
   });
 
   it('rejects a card that is not there', () => {
     const result = reduce(state, play(0, hand(7), 0));
-    expect(result).toMatchObject({ ok: false, reason: 'no card at that source' });
+    expect(result).toMatchObject({ ok: false, reason: 'reject.noCardThere' });
   });
 
   it('rejects an empty flensstok', () => {
@@ -104,12 +104,12 @@ describe('impossible actions are rejected', () => {
       centre: [[1, 2, 3]],
     });
     const result = reduce(empty, play(0, stok(), 0));
-    expect(result).toMatchObject({ ok: false, reason: 'no card at that source' });
+    expect(result).toMatchObject({ ok: false, reason: 'reject.noCardThere' });
   });
 
   it('rejects a centre pile that does not exist', () => {
     const result = reduce(state, play(0, hand(0), 99));
-    expect(result).toMatchObject({ ok: false, reason: 'no such centre pile' });
+    expect(result).toMatchObject({ ok: false, reason: 'reject.noSuchCentrePile' });
   });
 
   it('leaves the state untouched when rejecting', () => {
@@ -160,7 +160,7 @@ describe('winning', () => {
     });
     const finished = ok(state, play(0, stok(), 0));
 
-    expect(reduce(finished, play(0, hand(0), 1))).toMatchObject({ ok: false, reason: 'game is over' });
+    expect(reduce(finished, play(0, hand(0), 1))).toMatchObject({ ok: false, reason: 'reject.gameOver' });
   });
 
   it('under the allCards condition, an empty flensstok is not enough', () => {
@@ -230,7 +230,7 @@ describe('hand refill', () => {
     const next = ok(state, play(0, hand(0), 0));
 
     expect(next.players[0]!.hand).toHaveLength(5);
-    expect(next.log.some((e) => e.message.includes('reshuffled'))).toBe(true);
+    expect(next.log.some((e) => e.text.key === 'log.reshuffled')).toBe(true);
   });
 });
 
@@ -263,7 +263,7 @@ describe('passing and stalemate', () => {
     const state = scenario({ players: [{ hand: [12] }, {}], centre: [[1, 2, 3]] });
     expect(reduce(state, { type: 'pass', player: 0 })).toMatchObject({
       ok: false,
-      reason: 'you must play or discard, not pass',
+      reason: 'reject.mustPlayOrDiscard',
     });
   });
 
@@ -275,7 +275,7 @@ describe('passing and stalemate', () => {
     });
     expect(reduce(state, { type: 'pass', player: 0 })).toMatchObject({
       ok: false,
-      reason: 'you have a legal play and must make it',
+      reason: 'reject.mustPlay',
     });
   });
 
@@ -339,7 +339,7 @@ describe('the turn timer', () => {
 
     expect(next.currentPlayer).toBe(1);
     expect(values(next.players[0]!.hand)).toEqual([13]);
-    expect(next.log.some((e) => e.message.includes('ran out of time'))).toBe(true);
+    expect(next.log.some((e) => e.kind === 'timeout')).toBe(true);
   });
 
   it('still counts as a missed play if one was available', () => {
