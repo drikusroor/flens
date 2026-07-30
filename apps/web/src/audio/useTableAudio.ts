@@ -55,7 +55,6 @@ export function useTableAudio(
     const catchingUp = fresh.length > 6;
 
     for (const entry of fresh) {
-      if (!entry.kind) continue;
       if (!catchingUp) onEvent?.(entry.kind);
 
       if (entry.kind === 'flens') {

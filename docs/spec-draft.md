@@ -90,7 +90,10 @@ is not throwaway work — it is a prerequisite.
 packages/
   engine/        pure TS. No I/O, no network, no randomness except an injected seed.
                  reduce(state, action) -> state | error. Fully unit-testable, replayable.
+                 Also wordless: it emits message keys, never sentences (§8).
   bot/           AI policy: (visibleState) -> action. Depends only on engine types.
+  i18n/          every word the game says, in en/nl/es. Depended on by the engine for
+                 its key types, and by the client for the words themselves.
 apps/
   server/        Node + WebSocket. Authoritative. Owns the deck, the RNG seed, and
                  the per-player view filtering (you must not be able to sniff hidden cards).
@@ -108,6 +111,8 @@ Key properties to get right early:
 - **Actions, not state diffs, over the wire.** Small messages, and the client can predict.
 - **The bot is a client.** Single-player = one human + N bots against the same engine, in
   the same server process. No second code path.
+- **No language below the client.** Everything the engine and the server say is a key plus
+  parameters; only the browser, which knows who is reading, turns it into words (§8).
 
 ### AI
 
@@ -272,3 +277,40 @@ common call in real play.
 
 The countdown bar appears in exactly one lesson, and the next lesson says so and removes
 it. Anything else would teach "press when the bar shows up", which is not the game (§6).
+
+---
+
+## 8. Languages
+
+English, Dutch and Spanish, in `packages/i18n`.
+
+**The engine and the server are mute.** They do not produce sentences; they produce
+`Message` values — a catalogue key and its parameters — and the client turns those into
+words for whoever is reading. A log entry is `{ kind: 'play', text: { key: 'log.play',
+params: { name, value, pile } } }`; a refused action comes back as `reject.notYourTurn`,
+not as *"not your turn"*.
+
+That is what makes a room multilingual rather than merely translated. One authoritative
+table, one log, and six seats that may each be reading it in a different language — the
+server never learns which, because there is nothing language-shaped on the wire. It also
+made the engine's own tests sharper: they assert on `log.pankouk` instead of matching the
+substring `'Pankouk'`, so rewording a line can no longer break a rules test and a rules
+change can no longer hide behind one.
+
+Two things fall out of it that were not obvious in advance.
+
+**A seat name is a label, not a word in the sentence.** One of the seats is the person
+reading, called *You* / *Jij* / *Tú*, and a pronoun does not decline. `"{name} wins"` gave
+*"You wins"* — a bug the game already shipped in English — and Dutch and Spanish break
+harder: *"op Jij"*, *"de Tú"*. English and Dutch fix it by reporting in the past tense,
+which agrees with every subject; Spanish names the move instead of conjugating it, so its
+log reads like a scoresheet. `i18n.test.ts` fails any log line in those two languages that
+puts a seat name after a preposition.
+
+**Names are data; everything else is words.** Bot names and the name a player types travel
+over the wire and read identically to everyone, so they are never translated. The one
+exception is the local game and the tutorial, where your own seat has no typed name — the
+client passes the translated one in when it deals.
+
+Adding a language: one file in `packages/i18n/src/catalogue`, typed against the English
+one, so a missing key is a compile error and a dropped placeholder is a test failure.

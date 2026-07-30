@@ -1,5 +1,5 @@
 {
-  "name": "@flens/engine",
+  "name": "@flens/i18n",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -7,9 +7,6 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts"
-  },
-  "dependencies": {
-    "@flens/i18n": "*"
   },
   "scripts": {
     "test": "vitest run",

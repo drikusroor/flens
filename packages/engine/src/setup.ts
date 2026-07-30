@@ -79,6 +79,8 @@ export function newGame({ playerNames, seed = 1, config: overrides }: NewGameOpt
     idleTurns: 0,
     turnStartedAt: 0,
     pendingInfraction: null,
-    log: [{ at: 0, message: `Game started with ${playerNames.length} players`, kind: 'start' }],
+    log: [
+      { at: 0, kind: 'start', text: { key: 'log.start', params: { count: playerNames.length } } },
+    ],
   };
 }

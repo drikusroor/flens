@@ -11,8 +11,9 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { newGame, reduce, viewFor, type Action, type GameState } from '@flens/engine';
+import { newGame, reduce, viewFor, type Action, type GameState, type RejectionReason } from '@flens/engine';
 import { PROFILES, botAction, botCallsFlens, type Difficulty } from '@flens/bot';
+import type { Message } from '@flens/i18n';
 import type { TableController } from './controller';
 
 const TICK_MS = 100;
@@ -27,6 +28,12 @@ export interface GameOptions {
   readonly difficulty: Difficulty;
   readonly topValue: number;
   readonly seed: number;
+  /**
+   * What your own seat is called in the log. Passed in rather than fixed at
+   * "You", because the log is read in the player's language and a seat named in
+   * English inside a Dutch sentence reads like a bug.
+   */
+  readonly youName: string;
   /**
    * Training wheels. Off by default: the engine withholds the pending
    * infraction precisely so that spotting it stays the player's job. Turning it
@@ -56,7 +63,7 @@ export function useFlensGame(initial: GameOptions): FlensGame {
   const optionsRef = useRef<GameOptions>(initial);
   const nextBotMoveRef = useRef<number>(BOT_THINK_MIN_MS);
   const intentRef = useRef<FlensIntent | null>(null);
-  const rejectionRef = useRef<string | null>(null);
+  const rejectionRef = useRef<Message<RejectionReason> | null>(null);
 
   const [, bumpVersion] = useState(0);
   const rerender = useCallback(() => bumpVersion((v) => v + 1), []);
@@ -65,7 +72,7 @@ export function useFlensGame(initial: GameOptions): FlensGame {
     (action: Action): boolean => {
       const result = reduce(gameRef.current, action);
       if (!result.ok) {
-        rejectionRef.current = result.reason;
+        rejectionRef.current = { key: result.reason };
         rerender();
         return false;
       }
@@ -154,7 +161,7 @@ export function useFlensGame(initial: GameOptions): FlensGame {
 function createGame(options: GameOptions): GameState {
   const botNames = ['Bram', 'Cato', 'Dirk', 'Eef', 'Fokke'];
   return newGame({
-    playerNames: ['You', ...botNames.slice(0, options.opponents)],
+    playerNames: [options.youName, ...botNames.slice(0, options.opponents)],
     seed: options.seed,
     config: { topValue: options.topValue },
   });

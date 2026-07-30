@@ -6,10 +6,14 @@
  * clicks, the sounds, the animations and the rules are the ones the player will
  * meet five minutes later in an actual game, so everything they learn transfers.
  *
- * A lesson states what the learner has to do (`goal`) and what to say when they
- * try something else (`nudge`). Anything that is not the goal is refused before
- * it reaches the engine — with one deliberate exception, `permitMistake`, where
- * being caught is the lesson.
+ * A lesson states what the learner has to do (`goal`) and, in the catalogue,
+ * what to say when they try something else (its `nudge`). Anything that is not
+ * the goal is refused before it reaches the engine — with one deliberate
+ * exception, `permitMistake`, where being caught is the lesson.
+ *
+ * The words live in `@flens/i18n` under `lesson.<id>.*`, so the tutorial is
+ * taught in the learner's own language; a lesson here is the *position* and the
+ * *rule*, and carries only the key of what to say about them.
  *
  * This module is free of React on purpose: `lessons.test.ts` plays the whole
  * tutorial through the engine, so a lesson that asks for something the rules do
@@ -24,10 +28,57 @@ import {
   type FlensConfig,
   type GameState,
 } from '@flens/engine';
+import type { Message, MessageKey } from '@flens/i18n';
 
 /** The seat the learner occupies. The opponent is seat 1. */
 export const LEARNER = 0;
 export const OPPONENT = 1;
+
+/**
+ * The opponent's name, passed into every lesson line as `{opponent}`.
+ *
+ * A translator needs it as a parameter rather than baked into the sentence:
+ * Spanish wants "Vigila a Bram", and the name has to be somewhere the grammar
+ * around it can move.
+ */
+export const OPPONENT_NAME = 'Bram';
+
+/**
+ * What the learner's seat is called when nobody says otherwise. The coach panel
+ * has its own heading, but the *log* prints seat names, and a Dutch learner
+ * reading "You speelde 1 op middenstapel 0" is being taught in two languages at
+ * once — so `build` takes the name and `useTutorial` passes the translated one.
+ */
+export const DEFAULT_LEARNER_NAME = 'You';
+
+export type LessonId =
+  | 'centre'
+  | 'flensstok'
+  | 'priority'
+  | 'discard'
+  | 'voorrang'
+  | 'spot'
+  | 'watch'
+  | 'pankouk'
+  | 'win';
+
+/** Which of a lesson's five paragraphs. */
+export type LessonPart = 'title' | 'body' | 'task' | 'done' | 'nudge';
+
+/**
+ * The catalogue key for one paragraph of one lesson. Typed as a template
+ * literal, so a lesson id with no text behind it will not compile.
+ */
+export const lessonKey = <Id extends LessonId, Part extends LessonPart>(
+  id: Id,
+  part: Part,
+): `lesson.${Id}.${Part}` => `lesson.${id}.${part}`;
+
+/** What the coach panel says, including the opponent's name. */
+export const lessonText = (id: LessonId, part: LessonPart): Message => ({
+  key: lessonKey(id, part),
+  params: { opponent: OPPONENT_NAME },
+});
 
 /**
  * No turn clock while learning. A beginner reading a paragraph should not have
@@ -49,18 +100,15 @@ export type Goal =
 export type Zone = 'centre' | 'flensstok' | 'openPiles' | 'hand' | 'flens' | 'opponents';
 
 export interface Lesson {
-  readonly id: string;
-  readonly title: string;
-  /** Why this rule exists. Two or three sentences; nobody reads more. */
-  readonly body: string;
-  /** The imperative. One clause, and always a click they can find. */
-  readonly task: string;
-  /** Said once the goal is met. */
-  readonly done: string;
+  /**
+   * Also the catalogue prefix: `lesson.<id>.title`, `.body`, `.task`, `.done`
+   * and `.nudge` are what the coach panel reads out. `.nudge` is where the
+   * teaching happens — it answers the wrong click a beginner just made.
+   */
+  readonly id: LessonId;
   readonly goal: Goal;
-  /** Said when they try something else. This is where the teaching happens. */
-  readonly nudge: string;
-  readonly build: () => GameState;
+  /** Deals the position. Takes the learner's name so the log can be localised. */
+  readonly build: (learnerName?: string) => GameState;
   readonly focus?: Zone;
 
   /**
@@ -86,7 +134,7 @@ export interface Lesson {
    */
   readonly permitMistake?: 'discard';
   /** Shown after the punishment lands, before the lesson restarts. */
-  readonly mistake?: string;
+  readonly mistake?: MessageKey;
 }
 
 const run = (to: number): number[] => Array.from({ length: to }, (_, i) => i + 1);
@@ -101,43 +149,28 @@ const IDLE_HAND = [12, 3, 9];
 export const LESSONS: readonly Lesson[] = [
   {
     id: 'centre',
-    title: 'The centre starts at one',
-    body:
-      'Four piles in the middle of the table. Every one of them starts at 1 and builds up to 16, ' +
-      'and any player may add to any pile. That is the whole engine of the game.',
-    task: 'Pick up your 1 and put it on an empty centre pile.',
-    done: 'That pile wants a 2 now — from anybody, on any turn.',
     goal: { kind: 'play', from: { kind: 'hand', index: 0 } },
-    nudge: 'The centre piles are all empty, and an empty pile only accepts a 1.',
     focus: 'centre',
-    build: () =>
+    build: (learner = DEFAULT_LEARNER_NAME) =>
       scenario({
         config: TEACHING,
         players: [
-          { name: 'You', hand: [1, 7, 12, 15], flensstok: [16, 9, 4] },
-          { name: 'Bram', hand: IDLE_HAND, flensstok: [16, 10] },
+          { name: learner, hand: [1, 7, 12, 15], flensstok: [16, 9, 4] },
+          { name: OPPONENT_NAME, hand: IDLE_HAND, flensstok: [16, 10] },
         ],
       }),
   },
 
   {
     id: 'flensstok',
-    title: 'Your flensstok is the race',
-    body:
-      'The stack on the left is your flensstok — ten cards face down, only the top one showing. ' +
-      'Empty it and you win. Everything else on the table is just a way of getting at it, which ' +
-      'is why you play from it whenever you can.',
-    task: 'The centre wants a 5, and a 5 is sitting on your flensstok. Play it.',
-    done: 'Nine to go. Every card you shift off that stack is the game getting shorter.',
     goal: { kind: 'play', from: { kind: 'flensstok' } },
-    nudge: 'Nothing in your hand fits. Look at the top of your flensstok.',
     focus: 'flensstok',
-    build: () =>
+    build: (learner = DEFAULT_LEARNER_NAME) =>
       scenario({
         config: TEACHING,
         players: [
-          { name: 'You', hand: [8, 11, 14], flensstok: [16, 13, 5] },
-          { name: 'Bram', hand: IDLE_HAND, flensstok: [16, 10] },
+          { name: learner, hand: [8, 11, 14], flensstok: [16, 13, 5] },
+          { name: OPPONENT_NAME, hand: IDLE_HAND, flensstok: [16, 10] },
         ],
         centre: [[1, 2, 3, 4]],
       }),
@@ -145,24 +178,14 @@ export const LESSONS: readonly Lesson[] = [
 
   {
     id: 'priority',
-    title: 'The flensstok goes first',
-    body:
-      'You are holding a 7, and there is a 7 on your flensstok. They are the same card as far as ' +
-      'the centre is concerned — so the rule says the flensstok one has to go. Otherwise you could ' +
-      'sit on your stack forever and never lose.',
-    task: 'Play the 7 — from the right place.',
-    done: 'Correct. The hand 7 keeps; the flensstok 7 could not wait.',
     goal: { kind: 'play', from: { kind: 'flensstok' } },
-    nudge:
-      'Both are 7s, and that is exactly the trap. Playing the one from your hand while the same ' +
-      'value sits on your flensstok is an infraction — ignoring the flensstok — and it is callable.',
     focus: 'flensstok',
-    build: () =>
+    build: (learner = DEFAULT_LEARNER_NAME) =>
       scenario({
         config: TEACHING,
         players: [
-          { name: 'You', hand: [7, 9, 12], flensstok: [16, 7] },
-          { name: 'Bram', hand: IDLE_HAND, flensstok: [16, 10] },
+          { name: learner, hand: [7, 9, 12], flensstok: [16, 7] },
+          { name: OPPONENT_NAME, hand: IDLE_HAND, flensstok: [16, 10] },
         ],
         centre: [run(6)],
       }),
@@ -170,22 +193,14 @@ export const LESSONS: readonly Lesson[] = [
 
   {
     id: 'discard',
-    title: 'Ending your turn',
-    body:
-      'Nothing you hold fits anywhere. When you cannot play, you end your turn by putting one card ' +
-      'from your hand onto one of your four open piles. Those piles are face up and you may play ' +
-      'off the top of them later — so where you put a card matters.',
-    task: 'Discard a card onto an open pile.',
-    done: 'Turn over. Bury a card badly and you will be digging it out for the rest of the game.',
     goal: { kind: 'discard' },
-    nudge: 'Nothing here reaches the centre. The only way out of this turn is a discard.',
     focus: 'openPiles',
-    build: () =>
+    build: (learner = DEFAULT_LEARNER_NAME) =>
       scenario({
         config: TEACHING,
         players: [
-          { name: 'You', hand: [8, 11, 14, 16], flensstok: [16, 12] },
-          { name: 'Bram', hand: IDLE_HAND, flensstok: [16, 10] },
+          { name: learner, hand: [8, 11, 14, 16], flensstok: [16, 12] },
+          { name: OPPONENT_NAME, hand: IDLE_HAND, flensstok: [16, 10] },
         ],
         centre: [[1, 2, 3], run(5), [1], run(9)],
       }),
@@ -193,26 +208,16 @@ export const LESSONS: readonly Lesson[] = [
 
   {
     id: 'voorrang',
-    title: 'If you can play, you must',
-    body:
-      'This is the rule the whole game hangs on. Ending your turn while a legal centre play was ' +
-      'still available is an infraction — and it is the call you will hear most often at a real ' +
-      'table, because it is the easiest one to commit without noticing.',
-    task: 'Your 6 fits the first pile. Play it instead of discarding.',
-    done: 'Right. Check the centre against everything you can reach before you end a turn.',
     goal: { kind: 'play', from: { kind: 'hand', index: 0 } },
-    nudge: 'Something you are holding does reach the centre. Find it before you end the turn.',
     focus: 'centre',
     permitMistake: 'discard',
-    mistake:
-      'And there it is. You ended your turn with a play available, Bram called it, and his open ' +
-      'pile is now buried under yours for you to dig through. Again — this time play the 6.',
-    build: () =>
+    mistake: 'lesson.voorrang.mistake',
+    build: (learner = DEFAULT_LEARNER_NAME) =>
       scenario({
         config: TEACHING,
         players: [
-          { name: 'You', hand: [6, 10, 13, 15], flensstok: [16, 14] },
-          { name: 'Bram', hand: IDLE_HAND, flensstok: [16, 10], openPiles: [[13, 15, 11]] },
+          { name: learner, hand: [6, 10, 13, 15], flensstok: [16, 14] },
+          { name: OPPONENT_NAME, hand: IDLE_HAND, flensstok: [16, 10], openPiles: [[13, 15, 11]] },
         ],
         centre: [run(5), [1, 2], run(7), [1, 2, 3]],
       }),
@@ -225,25 +230,17 @@ export const LESSONS: readonly Lesson[] = [
 
   {
     id: 'spot',
-    title: 'Somebody has to call it',
-    body:
-      'Nothing in this game stops a wrong card going down. The engine will happily let a 9 land on ' +
-      'a pile waiting for a 3 — and it stays there, counting, unless another player shouts FLENS! ' +
-      'within six seconds. The bar below is training wheels; there is no bar in a real game.',
-    task: 'Watch Bram. The instant he plays out of sequence, hit FLENS!',
-    done: 'Got him. His card comes off the pile, and your smallest open pile goes to him.',
     goal: { kind: 'flens' },
-    nudge: 'Nothing to call yet — and calling wrongly costs you two cards onto your own flensstok.',
     focus: 'flens',
     arm: true,
     hints: true,
-    build: () =>
+    build: (learner = DEFAULT_LEARNER_NAME) =>
       scenario({
         config: TEACHING,
         currentPlayer: OPPONENT,
         players: [
-          { name: 'You', hand: [9, 12, 15, 16], flensstok: [16, 13], openPiles: [[7]] },
-          { name: 'Bram', hand: [11, 12, 15], flensstok: [16, 4], openPiles: [[8]] },
+          { name: learner, hand: [9, 12, 15, 16], flensstok: [16, 13], openPiles: [[7]] },
+          { name: OPPONENT_NAME, hand: [11, 12, 15], flensstok: [16, 4], openPiles: [[8]] },
         ],
         centre: [run(5), [1, 2], [], [1, 2, 3]],
       }),
@@ -261,26 +258,16 @@ export const LESSONS: readonly Lesson[] = [
 
   {
     id: 'watch',
-    title: 'Now without the bar',
-    body:
-      'That countdown is gone, and this mistake is quieter: Bram is about to end his turn with a 6 ' +
-      'on top of his flensstok while the first centre pile is asking for a 6. Comparing what people ' +
-      'can reach against what the centre wants — that is the actual skill of Flens.',
-    task: 'If Bram ends his turn without playing that 6, call it.',
-    done:
-      'That is the call that wins games. Everything you need was face up: his flensstok top and ' +
-      'what the pile was asking for.',
     goal: { kind: 'flens' },
-    nudge: 'Not yet. He has not ended his turn — until he does, he has done nothing wrong.',
     focus: 'opponents',
     arm: true,
-    build: () =>
+    build: (learner = DEFAULT_LEARNER_NAME) =>
       scenario({
         config: TEACHING,
         currentPlayer: OPPONENT,
         players: [
-          { name: 'You', hand: [11, 13, 15, 16], flensstok: [16, 14], openPiles: [[12, 12]] },
-          { name: 'Bram', hand: [10, 14, 16], flensstok: [16, 6] },
+          { name: learner, hand: [11, 13, 15, 16], flensstok: [16, 14], openPiles: [[12, 12]] },
+          { name: OPPONENT_NAME, hand: [10, 14, 16], flensstok: [16, 6] },
         ],
         centre: [run(5), run(8), [1, 2], [1]],
       }),
@@ -292,22 +279,14 @@ export const LESSONS: readonly Lesson[] = [
 
   {
     id: 'pankouk',
-    title: 'Pankouk!',
-    body:
-      'Finish a pile at 16 and the whole run is swept up and shuffled back into the supply, which ' +
-      'is what keeps the game from running out of cards. Traditionally the person who lands the 16 ' +
-      'shouts Pankouk — pancake. Half the names this game goes by are food.',
-    task: 'Put your 16 on the finished pile.',
-    done: 'Sixteen cards back into circulation, and a free pile for somebody to start at 1.',
     goal: { kind: 'play', from: { kind: 'hand', index: 0 } },
-    nudge: 'One pile is one card short of complete. Look at what it is asking for.',
     focus: 'centre',
-    build: () =>
+    build: (learner = DEFAULT_LEARNER_NAME) =>
       scenario({
         config: TEACHING,
         players: [
-          { name: 'You', hand: [16, 9, 11], flensstok: [16, 13] },
-          { name: 'Bram', hand: IDLE_HAND, flensstok: [16, 10] },
+          { name: learner, hand: [16, 9, 11], flensstok: [16, 13] },
+          { name: OPPONENT_NAME, hand: IDLE_HAND, flensstok: [16, 10] },
         ],
         centre: [run(15)],
       }),
@@ -315,21 +294,14 @@ export const LESSONS: readonly Lesson[] = [
 
   {
     id: 'win',
-    title: 'Flens!',
-    body:
-      'One card left on your flensstok, and the centre is asking for exactly it. Empty the stack ' +
-      'and the game is over on the spot — no need to clear your hand or your open piles.',
-    task: 'Play your last flensstok card and win.',
-    done: 'Flens. That is the game.',
     goal: { kind: 'play', from: { kind: 'flensstok' } },
-    nudge: 'The centre wants a 7, and there is only one place left to get one.',
     focus: 'flensstok',
-    build: () =>
+    build: (learner = DEFAULT_LEARNER_NAME) =>
       scenario({
         config: TEACHING,
         players: [
-          { name: 'You', hand: [9, 12, 15], flensstok: [7] },
-          { name: 'Bram', hand: IDLE_HAND, flensstok: [16, 10] },
+          { name: learner, hand: [9, 12, 15], flensstok: [7] },
+          { name: OPPONENT_NAME, hand: IDLE_HAND, flensstok: [16, 10] },
         ],
         centre: [run(6)],
       }),
@@ -344,7 +316,7 @@ export type Verdict =
   | { readonly kind: 'accept' }
   /** A wrong move the lesson wants to let through, because it teaches. */
   | { readonly kind: 'permit' }
-  | { readonly kind: 'refuse'; readonly message: string };
+  | { readonly kind: 'refuse'; readonly message: Message };
 
 const sourceKey = (s: CardSource): string =>
   s.kind === 'flensstok' ? s.kind : `${s.kind}:${s.index}`;
@@ -362,37 +334,33 @@ export function judge(lesson: Lesson, state: GameState, action: Action): Verdict
 
   const wrongCall = {
     kind: 'refuse',
-    message: 'Nothing to call — a wrong FLENS! costs you two cards onto your own flensstok.',
+    message: { key: 'tutorial.wrongCall' },
   } as const;
+
+  const nudge = { kind: 'refuse', message: lessonText(lesson.id, 'nudge') } as const;
 
   switch (lesson.goal.kind) {
     case 'flens':
-      if (action.type !== 'callFlens') return { kind: 'refuse', message: lesson.nudge };
-      return state.pendingInfraction === null
-        ? { kind: 'refuse', message: lesson.nudge }
-        : { kind: 'accept' };
+      if (action.type !== 'callFlens') return nudge;
+      return state.pendingInfraction === null ? nudge : { kind: 'accept' };
 
     case 'discard':
       if (action.type === 'callFlens') return wrongCall;
-      if (action.type !== 'discard') return { kind: 'refuse', message: lesson.nudge };
+      if (action.type !== 'discard') return nudge;
       return { kind: 'accept' };
 
     case 'play': {
       if (action.type === 'callFlens') return wrongCall;
       if (action.type === 'discard') {
-        return lesson.permitMistake === 'discard'
-          ? { kind: 'permit' }
-          : { kind: 'refuse', message: lesson.nudge };
+        return lesson.permitMistake === 'discard' ? { kind: 'permit' } : nudge;
       }
-      if (action.type !== 'play') return { kind: 'refuse', message: lesson.nudge };
-      if (sourceKey(action.from) !== sourceKey(lesson.goal.from)) {
-        return { kind: 'refuse', message: lesson.nudge };
-      }
+      if (action.type !== 'play') return nudge;
+      if (sourceKey(action.from) !== sourceKey(lesson.goal.from)) return nudge;
 
       // Right card, wrong pile. Naming what the pile is waiting for is more use
       // than repeating the lesson's nudge.
       const pile = state.centre[action.to.index];
-      if (!pile) return { kind: 'refuse', message: lesson.nudge };
+      if (!pile) return nudge;
       const card = cardFor(state, lesson.goal.from);
       const wants = nextValueFor(pile, state.config);
       if (card && wants !== card.value) {
@@ -400,8 +368,8 @@ export function judge(lesson: Lesson, state: GameState, action: Action): Verdict
           kind: 'refuse',
           message:
             wants === null
-              ? 'That run is already finished. Try another pile.'
-              : `That pile is waiting for a ${wants}. Find the one that wants a ${card.value}.`,
+              ? { key: 'tutorial.runFinished' }
+              : { key: 'tutorial.pileWants', params: { wants, value: card.value } },
         };
       }
       return { kind: 'accept' };

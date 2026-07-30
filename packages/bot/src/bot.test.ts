@@ -78,14 +78,14 @@ describe('botAction', () => {
     const start = game({ playerNames: ['Ada', 'Bram'], seed: 6 });
     const state = playOut(start, 'easy', seeded(9));
 
-    expect(state.log.some((e) => e.message.includes('infraction'))).toBe(true);
+    expect(state.log.some((e) => e.kind === 'infraction')).toBe(true);
   });
 
   it('plays clean when told never to err', () => {
     const start = game({ playerNames: ['Ada', 'Bram'], seed: 6 });
     const state = playOut(start, 'hard', never);
 
-    expect(state.log.some((e) => e.message.includes('infraction'))).toBe(false);
+    expect(state.log.some((e) => e.kind === 'infraction')).toBe(false);
   });
 });
 

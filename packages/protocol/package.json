@@ -9,7 +9,8 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@flens/engine": "*"
+    "@flens/engine": "*",
+    "@flens/i18n": "*"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

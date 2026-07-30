@@ -10,7 +10,17 @@
 
 import { describe, expect, it } from 'vitest';
 import { availableCentrePlays, reduce, type Action, type GameState } from '@flens/engine';
-import { judge, isCompletable, LEARNER, LESSONS, OPPONENT, solutionFor } from './lessons';
+import { LOCALES, render, translate } from '@flens/i18n';
+import {
+  judge,
+  isCompletable,
+  lessonKey,
+  LEARNER,
+  LESSONS,
+  OPPONENT,
+  OPPONENT_NAME,
+  solutionFor,
+} from './lessons';
 
 const apply = (state: GameState, action: Action): GameState => {
   const result = reduce(state, action);
@@ -76,7 +86,13 @@ describe.each(LESSONS.map((lesson, index) => [index + 1, lesson.id, lesson] as c
         const verdict = judge(lesson, state, action);
         // `permit` is a lesson deliberately letting a mistake land; anything
         // else must come back with a sentence explaining why not.
-        if (verdict.kind === 'refuse') expect(verdict.message.length).toBeGreaterThan(20);
+        // The gate hands back a key, so "something to read" means something to
+        // read in every language it will be read in.
+        if (verdict.kind === 'refuse') {
+          for (const { code } of LOCALES) {
+            expect(render(code, verdict.message).length, code).toBeGreaterThan(20);
+          }
+        }
         else expect(verdict.kind).toBe('permit');
       }
     });
@@ -132,7 +148,7 @@ describe('the lessons that need an opponent', () => {
     // And Bram must actually pounce, or the lesson is a rule with no teeth.
     const called = runOpponent(lesson, afterDiscard);
     expect(called.pendingInfraction).toBeNull();
-    expect(called.log.some((e) => e.kind === 'flens' || e.message.includes('FLENS!'))).toBe(true);
+    expect(called.log.some((e) => e.kind === 'flens')).toBe(true);
     expect(lesson.mistake).toBeTruthy();
   });
 });
@@ -170,10 +186,15 @@ describe('the whole tutorial, played end to end', () => {
     }
   });
 
-  it('says something in every slot the panel renders', () => {
+  it('says something in every slot the panel renders, in every language', () => {
     for (const lesson of LESSONS) {
-      for (const field of ['title', 'body', 'task', 'done', 'nudge'] as const) {
-        expect(lesson[field]?.length, `${lesson.id}.${field}`).toBeGreaterThan(0);
+      for (const part of ['title', 'body', 'task', 'done', 'nudge'] as const) {
+        for (const { code } of LOCALES) {
+          const line = translate(code, lessonKey(lesson.id, part), { opponent: OPPONENT_NAME });
+          expect(line.length, `${code}: ${lesson.id}.${part}`).toBeGreaterThan(0);
+          // A key rendered as itself means the catalogue has no line behind it.
+          expect(line, `${code}: ${lesson.id}.${part}`).not.toContain('lesson.');
+        }
       }
     }
   });

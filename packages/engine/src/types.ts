@@ -3,7 +3,15 @@
  *
  * The engine is pure: no I/O, no wall-clock reads, no unseeded randomness.
  * Every state transition goes through `reduce(state, action)`.
+ *
+ * It is also mute. Everything the engine has to say about what happened —
+ * log entries, infractions, refusals — is a `Message`: a catalogue key and its
+ * parameters, with no words attached. The words are chosen where the player is,
+ * which is what lets six people at one online table read the same log in three
+ * different languages.
  */
+
+import type { Keys, Message } from '@flens/i18n';
 
 export interface Card {
   /** Stable identity, so a UI can animate a specific card around the table. */
@@ -121,8 +129,12 @@ export interface Infraction {
   readonly offender: number;
   /** Engine time (ms) at which it happened. */
   readonly at: number;
-  /** Human-readable explanation, for the UI and for test assertions. */
-  readonly detail: string;
+  /**
+   * What exactly they did, as a clause: it reads inside the log line that
+   * reports the call, so it is phrased as "played 9 onto a pile expecting 3"
+   * rather than as a sentence.
+   */
+  readonly detail: Message<Keys<'infraction.'>>;
   /**
    * Enough information to undo an `outOfSequence` play if it gets caught:
    * which centre pile the bad card landed on and where it came from.
@@ -204,10 +216,14 @@ export type LogKind =
   /** Secret: an infraction nobody caught. */
   | 'gotAway';
 
+/** The line itself. One `LogKind` may have several — a timeout has three. */
+export type LogMessage = Message<Keys<'log.'>>;
+
 export interface LogEntry {
   readonly at: number;
-  readonly message: string;
-  readonly kind?: LogKind;
+  /** What to say, unworded. Render it with `@flens/i18n`. */
+  readonly text: LogMessage;
+  readonly kind: LogKind;
   /**
    * Entries that would give away an unresolved mistake. Noticing an infraction
    * is the player's job, so these are withheld from views by default — a client
@@ -233,10 +249,16 @@ export type Action =
   | { readonly type: 'tick'; readonly ms: number };
 
 /**
+ * Why an action was refused. A stable code, not a sentence: the server forwards
+ * it to a client that may not be reading in English.
+ */
+export type RejectionReason = Keys<'reject.'>;
+
+/**
  * Result of `reduce`. A rejected action leaves the state untouched — rejections
  * are for *impossible* actions (a card you don't hold, a turn that isn't yours).
  * Rule errors of judgement are not rejected; they become infractions.
  */
 export type ReduceResult =
   | { readonly ok: true; readonly state: GameState }
-  | { readonly ok: false; readonly state: GameState; readonly reason: string };
+  | { readonly ok: false; readonly state: GameState; readonly reason: RejectionReason };

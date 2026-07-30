@@ -42,6 +42,7 @@ four-letter code. Refreshing mid-game reclaims your seat.
 | [`packages/engine`](packages/engine) | Pure, deterministic rules engine. No I/O. `reduce(state, action)`. |
 | [`packages/bot`](packages/bot) | Opponent policy. Difficulty is error rate and reaction time, not search depth. |
 | [`packages/protocol`](packages/protocol) | Wire types shared by client and server, so they cannot drift. |
+| [`packages/i18n`](packages/i18n) | Every word the game says, in English, Dutch and Spanish. |
 | [`apps/server`](apps/server) | Authoritative WebSocket server. Rooms, seats, bots, reconnects. |
 | [`apps/web`](apps/web) | React client. Same table for local, online, tutorial and Discord play. |
 
@@ -60,6 +61,23 @@ discard and end your turn.
 The **FLENS!** button is always live and nothing tells you when to press it — spotting
 the mistake is the game. A wrong call costs you two cards. Turn on *"show me the
 mistakes"* in setup if you want the countdown while learning.
+
+## Languages
+
+English, **Nederlands** and **Español**. The game opens in your browser's language if it
+speaks it, and there is a switcher on the menu and in the table header; the choice is
+remembered.
+
+Nothing below the client is in a language. The engine and the server describe what
+happened — `{ key: 'log.play', params: { name, value, pile } }` — and the words are chosen
+once, in the browser, by whoever is reading. So an online room is genuinely multilingual:
+two people at the same table watch the same events in Dutch and in Spanish, and the
+server has no idea. Adding a fourth language is one file in
+[`packages/i18n`](packages/i18n) and no change anywhere else.
+
+The Dutch terms of art stay Dutch throughout, because they are the names of things rather
+than descriptions of them: *flensstok*, *voorraad*, *Pankouk*, and **FLENS!** itself —
+which is still shouted in Dutch whatever you are reading in.
 
 ## Sound and motion
 
